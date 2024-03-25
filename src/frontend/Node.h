@@ -16,6 +16,7 @@ namespace coy {
         RAW,
         INTEGER,
         FLOAT,
+        UNARY_OPERATOR,
         BINARY_OPERATOR,
         IF,
         WHILE,
@@ -76,6 +77,18 @@ namespace coy {
         explicit NodeFloat(float num);
         [[nodiscard]] std::string toString(int height) const override;
         [[nodiscard]] float getNumber() const { return _num; }
+    };
+    
+    class NodeUnaryOperator : public Node {
+    private:
+        std::shared_ptr<Node> _node{};
+        std::string _op;
+    public:
+        static const NodeType TYPE = NodeType::INTEGER;
+        explicit NodeUnaryOperator(std::string op, const std::shared_ptr<Node>& node);
+        [[nodiscard]] std::string toString(int height) const override;
+        [[nodiscard]] std::string getOperator() const { return _op; }
+        [[nodiscard]] std::shared_ptr<Node> getNode() const { return _node; }
     };
     
     class NodeBinaryOperator : public Node {

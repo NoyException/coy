@@ -28,10 +28,19 @@ namespace coy {
         return std::string(height * 2, ' ') + "float " + std::to_string(_num);
     }
 
+    NodeUnaryOperator::NodeUnaryOperator(std::string op, const std::shared_ptr<Node> &node)
+            : Node(NodeType::UNARY_OPERATOR),
+              _op(std::move(op)), _node(node) {}
+
+    std::string NodeUnaryOperator::toString(int height) const {
+        return std::string(height * 2, ' ') + "unary op " + _op + "\n" + _node->toString(height + 1);
+    }
+
     NodeBinaryOperator::NodeBinaryOperator(std::string op, const std::shared_ptr<Node> &left,
-                                           const std::shared_ptr<Node> &right) : Node(NodeType::BINARY_OPERATOR),
-                                                                                 _op(std::move(op)), _left(left),
-                                                                                 _right(right) {
+                                           const std::shared_ptr<Node> &right)
+            : Node(NodeType::BINARY_OPERATOR),
+              _op(std::move(op)), _left(left),
+              _right(right) {
 
     }
 

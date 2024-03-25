@@ -188,7 +188,7 @@ namespace coy {
             return std::make_shared<Parser<I, O2>>([self, binder](Input<I> input) -> Output<I, O2> {
                 auto result = self->parse(input);
                 if (result.isSuccess()) {
-                    return binder(*result.data())->parse(result.next().value());
+                    return binder(result.data())->parse(result.next().value());
                 } else {
                     return Output<I, O2>::fail(result.message());
                 }
@@ -377,9 +377,12 @@ namespace coy {
         static const std::shared_ptr<Parser<Token, NodeFloat>> FLOAT;
         static const std::shared_ptr<Parser<Token, BinaryOperator>> ADD_SUB;
         static const std::shared_ptr<Parser<Token, BinaryOperator>> MUL_DIV;
+        static const std::shared_ptr<Parser<Token, Token>> PLUS;
+        static const std::shared_ptr<Parser<Token, Token>> MINUS;
         static const std::shared_ptr<Parser<Token, Token>> OPEN_PAREN;
         static const std::shared_ptr<Parser<Token, Token>> CLOSE_PAREN;
         static const std::shared_ptr<Parser<Token, Node>> TERM;
+        static const std::shared_ptr<Parser<Token, Node>> SIGNED_TERM;
         static const std::shared_ptr<Parser<Token, Node>> PRODUCTION;
         static const std::shared_ptr<Parser<Token, Node>> EXPRESSION;
         static const std::shared_ptr<Parser<Token, Node>> PAREN_EXPRESSION;

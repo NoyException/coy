@@ -14,18 +14,19 @@
 namespace coy {
 
     const std::regex IDENTIFIER("^[a-zA-Z_][a-zA-Z0-9_]*");
-    const std::regex INTEGER("^-?[0-9]+");
-    const std::regex FLOAT("^-?[0-9]+\\.[0-9]+");
+    const std::regex INTEGER("^[0-9]+");
+    const std::regex FLOAT("^[0-9]+\\.[0-9]+");
     const std::regex OPERATOR(R"(^[\+\-\*\/])");
     const std::regex SEPARATOR(R"(^[\(\)])");
+    
     //TODO: 补充其他正则表达式
 
     const std::list<std::pair<std::regex, int>> DEFAULT_PATTERNS = {
-            {IDENTIFIER, TYPE_IDENTIFIER},
-            {INTEGER,    TYPE_INTEGER},
             {FLOAT,      TYPE_FLOAT},
+            {INTEGER,    TYPE_INTEGER},
             {OPERATOR,   TYPE_OPERATOR},
-            {SEPARATOR,  TYPE_SEPARATOR}
+            {SEPARATOR,  TYPE_SEPARATOR},
+            {IDENTIFIER, TYPE_IDENTIFIER},
     };
 
     class Lexer {
