@@ -8,12 +8,14 @@
 #include <string>
 #include <stdexcept>
 #include <memory>
+#include <vector>
 #include "Token.h"
 
 namespace coy {
     
     enum class NodeType {
         RAW,
+        IDENTIFIER,
         INTEGER,
         FLOAT,
         UNARY_OPERATOR,
@@ -58,7 +60,30 @@ namespace coy {
             return _raw;
         }
     };
-    
+
+    class NodeIdentifier : public Node {
+    private:
+        std::string _name;
+        std::vector<std::shared_ptr<Node>> _args{};
+    public:
+        static const NodeType TYPE = NodeType::IDENTIFIER;
+        explicit NodeIdentifier(std::string name) : Node(NodeType::IDENTIFIER), _name(std::move(name)){}
+        [[nodiscard]] std::string toString(int height) const override{
+            std::string str = std::string(height*2, ' ')+"identifier "+_name;
+            if (!_args.empty())
+                str += " with args";
+            for (const auto& arg : _args){
+                str += "\n"+arg->toString(height+1);
+            }
+            return str;
+        }
+        void addArg(const std::shared_ptr<Node>& arg){
+            _args.push_back(arg);
+        }
+        [[nodiscard]] std::vector<std::shared_ptr<Node>> getArgs() const { return _args; }
+        [[nodiscard]] std::string getName() const { return _name; }
+    };
+
     class NodeInteger : public Node {
     private:
         int _num;
@@ -78,7 +103,7 @@ namespace coy {
         [[nodiscard]] std::string toString(int height) const override;
         [[nodiscard]] float getNumber() const { return _num; }
     };
-    
+
     class NodeUnaryOperator : public Node {
     private:
         std::shared_ptr<Node> _node{};

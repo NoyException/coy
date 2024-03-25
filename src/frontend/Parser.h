@@ -220,7 +220,7 @@ namespace coy {
         }
 
         /**
-         * 左结合
+         * 左结合，this (op this)*
          * @param op 
          * @return 
          */
@@ -256,6 +256,12 @@ namespace coy {
 
     class Parsers {
     public:
+        /**
+         * 返回一个空Parser
+         * @tparam I 
+         * @tparam O 
+         * @return 
+         */
         template<typename I, typename O>
         static std::shared_ptr<Parser<I, O>> lazy(){
             return std::make_shared<Parser<I, O>>([](Input<I> input) -> Output<I, O> {
@@ -263,6 +269,12 @@ namespace coy {
             });
         }
 
+        /**
+         * 返回一个功能如下的Parser：如果输入已经结束，则返回一个成功的结果。
+         * @tparam I 
+         * @tparam O 
+         * @return 
+         */
         template<typename I, typename O>
         static std::shared_ptr<Parser<I, O>> end() {
             return std::make_shared<Parser<I, O>>([](Input<I> input) -> Output<I, O> {
@@ -315,6 +327,13 @@ namespace coy {
             });
         }
 
+        /**
+         * 返回一个功能如下的Parser：按照顺序尝试解析多个Parser，返回第一个成功的结果。
+         * @tparam I 
+         * @tparam O 
+         * @param parsers 
+         * @return 
+         */
         template<typename I, typename O>
         static std::shared_ptr<Parser<I, O>> any(std::initializer_list<std::shared_ptr<Parser<I, O>>> parsers) {
             std::list<std::shared_ptr<Parser<I, O>>> list(parsers);
@@ -329,7 +348,27 @@ namespace coy {
             });
         }
 
-
+        template<typename I, typename O>
+        static std::shared_ptr<Parser<I, std::vector<std::shared_ptr<O>>>> many(const std::shared_ptr<Parser<I, O>> &parser, bool atLeastOne = false) {
+            return std::make_shared<Parser<I, std::vector<std::shared_ptr<O>>>>([parser, atLeastOne](Input<I> input) -> Output<I, std::vector<std::shared_ptr<O>>> {
+                std::vector<std::shared_ptr<O>> results;
+                Input<I> current = input;
+                while (true) {
+                    auto result = parser->parse(current);
+                    if (result.isSuccess()) {
+                        results.push_back(result.data());
+                        current = result.next().value();
+                    } else {
+                        if (results.empty() && atLeastOne) {
+                            return Output<I, std::vector<std::shared_ptr<O>>>::fail("At least one expected");
+                        } else {
+                            return Output<I, std::vector<std::shared_ptr<O>>>::success(std::make_shared<std::vector<std::shared_ptr<O>>>(results), current);
+                        }
+                    }
+                }
+            });
+        }
+        
         template<typename I, typename O>
         static std::shared_ptr<Parser<I, O>> sequence(std::initializer_list<std::shared_ptr<Parser<I, O>>> parsers) {
             return std::make_shared<Parser<I, O>>([parsers](Input<I> input) -> Output<I, O> {
@@ -373,19 +412,36 @@ namespace coy {
     public:
 
         using BinaryOperator = std::function<std::shared_ptr<Node>(const std::shared_ptr<Node>&,const std::shared_ptr<Node>&)>;
-        static const std::shared_ptr<Parser<Token, NodeInteger>> INTEGER;
-        static const std::shared_ptr<Parser<Token, NodeFloat>> FLOAT;
+        static const std::shared_ptr<Parser<Token, NodeIdentifier>> IDENTIFIER;
+        static const std::shared_ptr<Parser<Token, Node>> INTEGER;
+        static const std::shared_ptr<Parser<Token, Node>> FLOAT;
+        static const std::shared_ptr<Parser<Token, Node>> NUMBER;
         static const std::shared_ptr<Parser<Token, BinaryOperator>> ADD_SUB;
         static const std::shared_ptr<Parser<Token, BinaryOperator>> MUL_DIV;
+        static const std::shared_ptr<Parser<Token, BinaryOperator>> INEQUALITY_OPERATOR;
+        static const std::shared_ptr<Parser<Token, BinaryOperator>> EQUALITY_OPERATOR;
+        static const std::shared_ptr<Parser<Token, BinaryOperator>> LOGICAL_AND;
+        static const std::shared_ptr<Parser<Token, BinaryOperator>> LOGICAL_OR;
         static const std::shared_ptr<Parser<Token, Token>> PLUS;
         static const std::shared_ptr<Parser<Token, Token>> MINUS;
-        static const std::shared_ptr<Parser<Token, Token>> OPEN_PAREN;
-        static const std::shared_ptr<Parser<Token, Token>> CLOSE_PAREN;
+        static const std::shared_ptr<Parser<Token, Token>> NOT;
+        static const std::shared_ptr<Parser<Token, Token>> UNARY_OPERATOR;
+        static const std::shared_ptr<Parser<Token, Token>> LEFT_ROUND_BRACKET;
+        static const std::shared_ptr<Parser<Token, Token>> RIGHT_ROUND_BRACKET;
+        static const std::shared_ptr<Parser<Token, Token>> LEFT_SQUARE_BRACKET;
+        static const std::shared_ptr<Parser<Token, Token>> RIGHT_SQUARE_BRACKET;
         static const std::shared_ptr<Parser<Token, Node>> TERM;
         static const std::shared_ptr<Parser<Token, Node>> SIGNED_TERM;
-        static const std::shared_ptr<Parser<Token, Node>> PRODUCTION;
+        static const std::shared_ptr<Parser<Token, Node>> PRODUCT;
+        static const std::shared_ptr<Parser<Token, Node>> SUM;
+        static const std::shared_ptr<Parser<Token, Node>> INEQUALITY;
+        static const std::shared_ptr<Parser<Token, Node>> EQUALITY;
+        static const std::shared_ptr<Parser<Token, Node>> AND_EXPRESSION;
+        static const std::shared_ptr<Parser<Token, Node>> OR_EXPRESSION;
         static const std::shared_ptr<Parser<Token, Node>> EXPRESSION;
-        static const std::shared_ptr<Parser<Token, Node>> PAREN_EXPRESSION;
+        static const std::shared_ptr<Parser<Token, Node>> ROUND_BRACKET_EXPRESSION;
+        static const std::shared_ptr<Parser<Token, Node>> SQUARE_BRACKET_EXPRESSION;
+        static const std::shared_ptr<Parser<Token, Node>> LEFT_VALUE;
         static const std::shared_ptr<Parser<Token, Node>> PARSER;
         static const int initializer;
     };
