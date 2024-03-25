@@ -7,10 +7,13 @@
 
 #include <string>
 #include <stdexcept>
+#include <memory>
+#include "Token.h"
 
 namespace coy {
     
     enum class NodeType {
+        RAW,
         INTEGER,
         FLOAT,
         BINARY_OPERATOR,
@@ -41,6 +44,20 @@ namespace coy {
         }
     };
     
+    template<typename T>
+    class NodeRaw : public Node{
+    private:
+        T _raw;
+    public:
+        explicit NodeRaw(T raw) : Node(NodeType::RAW), _raw(raw){}
+        [[nodiscard]] std::string toString(int height) const override{
+            return std::string(height*2, ' ')+"raw";
+        }
+        [[nodiscard]] T get(){
+            return _raw;
+        }
+    };
+    
     class NodeInteger : public Node {
     private:
         int _num;
@@ -63,16 +80,16 @@ namespace coy {
     
     class NodeBinaryOperator : public Node {
     private:
-        Node* _left;
-        Node* _right;
+        std::shared_ptr<Node> _left{};
+        std::shared_ptr<Node> _right{};
         std::string _op;
     public:
         static const NodeType TYPE = NodeType::INTEGER;
-        explicit NodeBinaryOperator(Node* left, Node* right, std::string op);
+        explicit NodeBinaryOperator(std::string op, const std::shared_ptr<Node>& left, const std::shared_ptr<Node>& right);
         [[nodiscard]] std::string toString(int height) const override;
-        [[nodiscard]] Node* getLeft() const { return _left; }
-        [[nodiscard]] Node* getRight() const { return _right; }
         [[nodiscard]] std::string getOperator() const { return _op; }
+        [[nodiscard]] std::shared_ptr<Node> getLeft() const { return _left; }
+        [[nodiscard]] std::shared_ptr<Node> getRight() const { return _right; }
     };
     
     class NodeIf : public Node {

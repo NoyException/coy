@@ -17,22 +17,26 @@ namespace coy {
     const std::regex INTEGER("^-?[0-9]+");
     const std::regex FLOAT("^-?[0-9]+\\.[0-9]+");
     const std::regex OPERATOR(R"(^[\+\-\*\/])");
+    const std::regex SEPARATOR(R"(^[\(\)])");
     //TODO: 补充其他正则表达式
 
     const std::list<std::pair<std::regex, int>> DEFAULT_PATTERNS = {
             {IDENTIFIER, TYPE_IDENTIFIER},
-            {INTEGER, TYPE_NUMBER},
-            {FLOAT, TYPE_NUMBER},
-            {OPERATOR, TYPE_OPERATOR}
+            {INTEGER,    TYPE_INTEGER},
+            {FLOAT,      TYPE_FLOAT},
+            {OPERATOR,   TYPE_OPERATOR},
+            {SEPARATOR,  TYPE_SEPARATOR}
     };
-    
+
     class Lexer {
     private:
         std::stringstream stream;
         std::list<std::pair<std::regex, int>> patterns;
     public:
-        explicit Lexer(const std::string& string, std::list<std::pair<std::regex, int>> patterns = DEFAULT_PATTERNS);
+        explicit Lexer(const std::string &string, std::list<std::pair<std::regex, int>> patterns = DEFAULT_PATTERNS);
+
         Token nextToken();
+
         std::vector<Token> tokenize();
     };
 

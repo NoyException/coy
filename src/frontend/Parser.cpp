@@ -5,95 +5,67 @@
 #include "Parser.h"
 
 namespace coy {
-
-    Parser::Parser(std::function<ParseResult(const std::vector<Token> &, int, int)> parseFunction) : _parseFunction(
-            std::move(parseFunction)) {
-        if(_parseFunction == nullptr) {
-            throw std::invalid_argument("parseFunction cannot be null");
-        }
-    }
-
-    Parser::Parser(const Parser &other) : _parseFunction(other._parseFunction) {
-        if(_parseFunction == nullptr) {
-            throw std::invalid_argument("parseFunction cannot be null");
-        }
-    }
-
-    ParseResult Parser::parse(const std::vector<Token> &tokens) const {
-        return _parseFunction(tokens, 0, (int) tokens.size());
-    }
-
-    ParseResult Parser::parse(const std::vector<Token> &tokens, int from, int to) const {
-        if (from < 0 || to > tokens.size()) {
-            throw std::out_of_range("Index out of range");
-        }
-        return _parseFunction(tokens, from, to);
-    }
-
-    Parser Parser::orElse(const Parser &other) const {
-        return Parser([&](const std::vector<Token> &tokens, int from, int to) {
-            auto result = this->parse(tokens, from, to);
-            if (result.success) {
-                return result;
-            } else {
-                return other.parse(tokens, from, to);
-            }
-        });
-    }
+    const std::shared_ptr<Parser<Token, NodeInteger>> CoyParsers::INTEGER =
+            Parsers::satisfy<Token>([](const Token &token) {
+                return token.type == TYPE_INTEGER;
+            })->map<NodeInteger>([](const std::shared_ptr<Token> &token) {
+                return std::make_shared<NodeInteger>(std::stoi(token->value));
+            });
     
-    Parser createBinaryOperatorParser(const std::set<std::string> &ops) {
-        return Parser([&](const std::vector<Token> &tokens, int from, int to){
-            if (to - from < 3) {
-                return ParseResult{nullptr, false, "Not enough tokens"};
-            }
-            int opIndex = -1;
-            for (int i = from + 1; i < to - 1; ++i) {
-                if (tokens[i].type == TYPE_OPERATOR && ops.count(tokens[i].value) > 0) {
-                    opIndex = i;
-                    break;
-                }
-            }
-            if (opIndex == -1) {
-                return ParseResult{nullptr, false, "Not an expected operator"};
-            }
+    const std::shared_ptr<Parser<Token, NodeFloat>> CoyParsers::FLOAT =
+            Parsers::satisfy<Token>([](const Token &token) {
+                return token.type == TYPE_FLOAT;
+            })->map<NodeFloat>([](const std::shared_ptr<Token> &token) {
+                return std::make_shared<NodeFloat>(std::stof(token->value));
+            });
+    
+    const std::shared_ptr<Parser<Token, CoyParsers::BinaryOperator>> CoyParsers::ADD_SUB =
+            Parsers::satisfy<Token>([](const Token &token) {
+                return token.type == TYPE_OPERATOR && (token.value == "+" || token.value == "-");
+            })->map<BinaryOperator>([](const std::shared_ptr<Token> &token) {
+                return std::make_shared<BinaryOperator>([token](const std::shared_ptr<Node> &left, const std::shared_ptr<Node> &right) {
+                    return (std::shared_ptr<Node>)std::make_shared<NodeBinaryOperator>(token->value, left, right);
+                });
+            });
 
-            auto left = parseExpression.parse(tokens, from, opIndex);
-            auto right = parseExpression.parse(tokens, opIndex + 1, to);
+    const std::shared_ptr<Parser<Token, CoyParsers::BinaryOperator>> CoyParsers::MUL_DIV =
+            Parsers::satisfy<Token>([](const Token &token) {
+                return token.type == TYPE_OPERATOR && (token.value == "*" || token.value == "/");
+            })->map<BinaryOperator>([](const std::shared_ptr<Token> &token) {
+                return std::make_shared<BinaryOperator>([token](const std::shared_ptr<Node> &left, const std::shared_ptr<Node> &right) {
+                    return (std::shared_ptr<Node>)std::make_shared<NodeBinaryOperator>(token->value, left, right);
+                });
+            });
+    
+    const std::shared_ptr<Parser<Token, Token>> CoyParsers::OPEN_PAREN =
+            Parsers::satisfy<Token>([](const Token &token) {
+                return token.type == TYPE_SEPARATOR && token.value == "(";
+            });
+    
+    const std::shared_ptr<Parser<Token, Token>> CoyParsers::CLOSE_PAREN =
+            Parsers::satisfy<Token>([](const Token &token) {
+                return token.type == TYPE_SEPARATOR && token.value == ")";
+            });
 
-            if (!left.success || !right.success) {
-                return ParseResult{nullptr, false, "Invalid operands"};
-            }
-            return ParseResult{new NodeBinaryOperator(left.value, right.value, tokens[opIndex].value), true, ""};
-        });
-    }
+    //term = INTEGER | FLOAT | '(' expr ')'
+    const std::shared_ptr<Parser<Token, Node>> CoyParsers::TERM = Parsers::lazy<Token, Node>();
+    
+    //production = term (MUL_DIV term)*
+    const std::shared_ptr<Parser<Token, Node>> CoyParsers::PRODUCTION =
+            TERM->chainLeft(MUL_DIV);
+    
+    //expr = production (ADD_SUB production)*
+    const std::shared_ptr<Parser<Token, Node>> CoyParsers::EXPRESSION = 
+            PRODUCTION->chainLeft(ADD_SUB);
 
-    Parser parseInteger = Parser([](const std::vector<Token> &tokens, int from, int to) {
-        if (to - from != 1) {
-            return ParseResult{nullptr, false, "Invalid number of tokens"};
-        }
-        if (tokens[from].type != TYPE_NUMBER) {
-            return ParseResult{nullptr, false, "Not a number"};
-        }
-        return ParseResult{new NodeInteger(std::stoi(tokens[from].value)), true, ""};
-    });
+    //paren_expr = '(' expr ')'
+    const std::shared_ptr<Parser<Token, Node>> CoyParsers::PAREN_EXPRESSION =
+            CoyParsers::OPEN_PAREN->then(CoyParsers::EXPRESSION)->skip(CoyParsers::CLOSE_PAREN);
 
-    Parser parseFloat = Parser([](const std::vector<Token> &tokens, int from, int to)  {
-        if (to - from != 1) {
-            return ParseResult{nullptr, false, "Invalid number of tokens"};
-        }
-        if (tokens[from].type != TYPE_NUMBER) {
-            return ParseResult{nullptr, false, "Not a number"};
-        }
-        return ParseResult{new NodeFloat(std::stof(tokens[from].value)), true, ""};
-    });
-
-    Parser parseNumber = parseInteger.orElse(parseFloat);
-
-    std::set<std::string> addSubOps = {"+", "-"};
-    std::set<std::string> mulDivOps = {"*", "/"};
-    Parser parseAddSub = createBinaryOperatorParser(addSubOps);
-    Parser parseMulDiv = createBinaryOperatorParser(mulDivOps);
-
-    static Parser temp = parseAddSub.orElse(parseMulDiv);
-    Parser parseExpression = temp.orElse(parseNumber);
+    const std::shared_ptr<Parser<Token, Node>> CoyParsers::PARSER = EXPRESSION->skip(Parsers::end<Token,Node>());
+    
+    const int CoyParsers::initializer = []() -> int {
+        (*TERM) = *Parsers::any({INTEGER->as<Node>(), FLOAT->as<Node>(), PAREN_EXPRESSION});
+        return 0;
+    }();
 } // coy

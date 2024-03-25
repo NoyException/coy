@@ -13,8 +13,9 @@
 #define TYPE_KEYWORD 1
 #define TYPE_SEPARATOR 2
 #define TYPE_OPERATOR 3
-#define TYPE_NUMBER 4
-#define TYPE_STRING 5
+#define TYPE_INTEGER 4
+#define TYPE_FLOAT 5
+#define TYPE_STRING 6
 #define TYPE_EOF -1
 #define TYPE_UNKNOWN -2
 
