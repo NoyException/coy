@@ -16,8 +16,10 @@ namespace coy {
     const std::regex IDENTIFIER("^[a-zA-Z_][a-zA-Z0-9_]*");
     const std::regex INTEGER("^[0-9]+");
     const std::regex FLOAT("^[0-9]+\\.[0-9]+");
-    const std::regex OPERATOR(R"(^([\+\-\*\/]|==|!=|<=|>=|<|>|&&|\|\|))");
-    const std::regex SEPARATOR(R"(^[\(\)\[\]])");
+    const std::regex OPERATOR(R"(^([\+\-\*\/]|==|!=|<=|>=|<|>|=|&&|\|\|))");
+    const std::regex SEPARATOR(R"(^[\(\)\[\]\{\};])");
+    const std::regex DATA_TYPE(R"(^(int|float|char|bool|void))");
+    const std::regex KEY_WORD(R"(^(if|else|while))");
     
     //TODO: 补充其他正则表达式
 
@@ -26,6 +28,8 @@ namespace coy {
             {INTEGER,    TYPE_INTEGER},
             {OPERATOR,   TYPE_OPERATOR},
             {SEPARATOR,  TYPE_SEPARATOR},
+            {DATA_TYPE,  TYPE_DATA_TYPE},
+            {KEY_WORD,   TYPE_KEYWORD},
             {IDENTIFIER, TYPE_IDENTIFIER},
     };
 

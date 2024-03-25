@@ -87,6 +87,10 @@ namespace coy {
 
     const std::shared_ptr<Parser<Token, Token>> CoyParsers::RIGHT_SQUARE_BRACKET = generateSeparator("]");
 
+    const std::shared_ptr<Parser<Token, Token>> CoyParsers::LEFT_BRACE = generateSeparator("{");
+
+    const std::shared_ptr<Parser<Token, Token>> CoyParsers::RIGHT_BRACE = generateSeparator("}");
+
     //term = INTEGER | FLOAT | paren_expr
     const std::shared_ptr<Parser<Token, Node>> CoyParsers::TERM = Parsers::lazy<Token, Node>();
 
@@ -157,10 +161,75 @@ namespace coy {
                         );
                     });
 
-    const std::shared_ptr<Parser<Token, Node>> CoyParsers::PARSER = EXPRESSION->skip(Parsers::end<Token, Node>());
+    const std::shared_ptr<Parser<Token, Token>> CoyParsers::END_STATEMENT = generateSeparator(";");
 
+    const std::shared_ptr<Parser<Token, Node>> CoyParsers::ASSIGNMENT =
+            LEFT_VALUE
+                    ->skip(
+                            Parsers::satisfy<Token>([](const Token &token) {
+                                return token.type == TYPE_OPERATOR && token.value == "=";
+                            }))
+                    ->bind<Node>(
+                            [](const std::shared_ptr<Node> &leftValue) -> std::shared_ptr<Parser<Token, Node>> {
+                                return EXPRESSION->map<Node>(
+                                        [leftValue](const std::shared_ptr<Node> &expr) -> std::shared_ptr<Node> {
+                                            return std::make_shared<NodeAssignment>(leftValue, expr);
+                                        }
+                                );
+                            });
+
+    //statement = left_value "=" expr ";" | expr ";" | if_statement
+    const std::shared_ptr<Parser<Token, Node>> CoyParsers::STATEMENT = Parsers::lazy<Token, Node>();
+
+    //if_statement = 'if' '(' expr ')' statement ('else' statement)?
+    const std::shared_ptr<Parser<Token, Node>> CoyParsers::IF_STATEMENT =
+            Parsers::satisfy<Token>([](const Token &token) {
+                return token.type == TYPE_KEYWORD && token.value == "if";
+            })
+                    ->then(LEFT_ROUND_BRACKET)
+                    ->then(EXPRESSION)
+                    ->skip(RIGHT_ROUND_BRACKET)
+                    ->bind<Node>(
+                            [](const std::shared_ptr<Node> &condition) -> std::shared_ptr<Parser<Token, Node>> {
+                                return STATEMENT->bind<Node>(
+                                        [condition](
+                                                const std::shared_ptr<Node> &statement) -> std::shared_ptr<Parser<Token, Node>> {
+                                            return Parsers::satisfy<Token>([](const Token &token) {
+                                                return token.type == TYPE_KEYWORD && token.value == "else";
+                                            })
+                                                    ->then(STATEMENT)
+                                                    ->orElse(Parsers::pure<Token, Node>(nullptr))
+                                                    ->map<Node>([condition, statement](
+                                                            const std::shared_ptr<Node> &elseStatement) -> std::shared_ptr<Node> {
+                                                        return std::make_shared<NodeIf>(condition, statement,
+                                                                                        elseStatement);
+                                                    });
+                                        }
+                                );
+                            });
+
+    //TODO: many STATEMENT或DECLARATION
+    const std::shared_ptr<Parser<Token, Node>> CoyParsers::CODE_BLOCK =
+            LEFT_BRACE->then(Parsers::many(STATEMENT))->skip(RIGHT_BRACE)->map<Node>(
+                    [](const std::shared_ptr<std::vector<std::shared_ptr<Node>>> &nodes) {
+                        auto block = std::make_shared<NodeBlock>();
+                        for (const auto &node: *nodes) {
+                            block->addStatement(node);
+                        }
+                        return block;
+                    });
+
+//    const std::shared_ptr<Parser<Token, Node>> CoyParsers::PARSER = EXPRESSION->skip(Parsers::end<Token, Node>());
+
+    const std::shared_ptr<Parser<Token, Node>> CoyParsers::PARSER = STATEMENT->skip(Parsers::end<Token, Node>());
+    
     const int CoyParsers::initializer = []() -> int {
         (*TERM) = *Parsers::any({NUMBER, LEFT_VALUE, ROUND_BRACKET_EXPRESSION});
+        (*STATEMENT) = *Parsers::any({
+                                             CODE_BLOCK,
+                                             EXPRESSION->skip(END_STATEMENT),
+                                             ASSIGNMENT->skip(END_STATEMENT),
+                                             IF_STATEMENT});
         return 0;
     }();
 } // coy

@@ -7,9 +7,16 @@ using namespace coy;
 
 int main(int argc, char *argv[]) {
 //    std::string filename = argv[1];
-    Lexer lexer("-(-1.5+--2)*3");
+//    Lexer lexer("-(-1.5+--2)*3");
 //    Lexer lexer("-1 && 1+2>3 || 3-1==2");
 //    Lexer lexer("a[1+c[3]]+b");
+//    Lexer lexer("{a[1+c[3]] = b;1+2;}");
+    Lexer lexer("{"
+                "if(1+1){"
+                "a=1;"
+                "}"
+                "else a=2;"
+                "}");
     auto tokens = lexer.tokenize();
     Input<Token> input(std::make_shared<std::vector<Token>>(tokens));
 //    Input<Token> input(std::make_shared<std::vector<Token>>(std::vector<Token>{

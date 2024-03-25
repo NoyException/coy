@@ -294,7 +294,7 @@ namespace coy {
          * @return 
          */
         template<typename I, typename O>
-        static std::shared_ptr<Parser<I, O>> supply(const std::shared_ptr<O> &data) {
+        static std::shared_ptr<Parser<I, O>> pure(const std::shared_ptr<O> &data) {
             return std::make_shared<Parser<I, O>>([data](Input<I> input) -> Output<I, O> {
                 return Output<I, O>::success(data, input);
             });
@@ -348,6 +348,15 @@ namespace coy {
             });
         }
 
+        /**
+         * 返回一个功能如下的Parser：尝试多次解析一个Parser，返回一个成功的结果，结果为所有解析结果的列表。
+         * 如果atLeastOne为true，则至少要解析一次。
+         * @tparam I 
+         * @tparam O 
+         * @param parser 
+         * @param atLeastOne 
+         * @return 
+         */
         template<typename I, typename O>
         static std::shared_ptr<Parser<I, std::vector<std::shared_ptr<O>>>> many(const std::shared_ptr<Parser<I, O>> &parser, bool atLeastOne = false) {
             return std::make_shared<Parser<I, std::vector<std::shared_ptr<O>>>>([parser, atLeastOne](Input<I> input) -> Output<I, std::vector<std::shared_ptr<O>>> {
@@ -430,6 +439,8 @@ namespace coy {
         static const std::shared_ptr<Parser<Token, Token>> RIGHT_ROUND_BRACKET;
         static const std::shared_ptr<Parser<Token, Token>> LEFT_SQUARE_BRACKET;
         static const std::shared_ptr<Parser<Token, Token>> RIGHT_SQUARE_BRACKET;
+        static const std::shared_ptr<Parser<Token, Token>> LEFT_BRACE;
+        static const std::shared_ptr<Parser<Token, Token>> RIGHT_BRACE;
         static const std::shared_ptr<Parser<Token, Node>> TERM;
         static const std::shared_ptr<Parser<Token, Node>> SIGNED_TERM;
         static const std::shared_ptr<Parser<Token, Node>> PRODUCT;
@@ -442,6 +453,12 @@ namespace coy {
         static const std::shared_ptr<Parser<Token, Node>> ROUND_BRACKET_EXPRESSION;
         static const std::shared_ptr<Parser<Token, Node>> SQUARE_BRACKET_EXPRESSION;
         static const std::shared_ptr<Parser<Token, Node>> LEFT_VALUE;
+
+        static const std::shared_ptr<Parser<Token, Token>> END_STATEMENT;
+        static const std::shared_ptr<Parser<Token, Node>> ASSIGNMENT;
+        static const std::shared_ptr<Parser<Token, Node>> STATEMENT;
+        static const std::shared_ptr<Parser<Token, Node>> IF_STATEMENT;
+        static const std::shared_ptr<Parser<Token, Node>> CODE_BLOCK;
         static const std::shared_ptr<Parser<Token, Node>> PARSER;
         static const int initializer;
     };

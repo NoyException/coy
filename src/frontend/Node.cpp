@@ -49,8 +49,9 @@ namespace coy {
                _right->toString(height + 1);
     }
 
-    NodeIf::NodeIf(Node *condition, Node *body, Node *_else) : Node(NodeType::IF), _condition(condition), _body(body),
-                                                               _else(_else) {
+    NodeIf::NodeIf(const std::shared_ptr<Node> &condition, const std::shared_ptr<Node> &body,
+                   const std::shared_ptr<Node> &elseStatement) : Node(NodeType::IF), _condition(condition), _body(body),
+                                                                 _else(elseStatement) {
 
     }
 
@@ -59,4 +60,13 @@ namespace coy {
                _body->toString(height + 1) + (_else ? "\n" + _else->toString(height + 1) : "");
     }
 
+    NodeAssignment::NodeAssignment(const std::shared_ptr<Node> &left, const std::shared_ptr<Node> &statement) :
+            Node(NodeType::ASSIGNMENT), _left(left), _statement(statement) {
+
+    }
+
+    std::string NodeAssignment::toString(int height) const {
+        return std::string(height * 2, ' ') + "assignment\n" + _left->toString(height + 1) + "\n" +
+               _statement->toString(height + 1);
+    }
 } // coy
