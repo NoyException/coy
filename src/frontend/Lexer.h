@@ -18,8 +18,8 @@ namespace coy {
     const std::regex FLOAT("^[0-9]+\\.[0-9]+");
     const std::regex OPERATOR(R"(^([\+\-\*\/]|==|!=|<=|>=|<|>|=|&&|\|\|))");
     const std::regex SEPARATOR(R"(^[\(\)\[\]\{\};,])");
-    const std::regex DATA_TYPE(R"(^(int|float|char|bool|void))");
-    const std::regex KEY_WORD(R"(^(if|else|while|break|continue|return))");
+    const std::regex DATA_TYPE(R"(^(int|float|char|bool|void)\b)");
+    const std::regex KEY_WORD(R"(^(if|else|while|break|continue|return)\b)");
     const std::regex COMMENT(R"(^//.*\r?\n?)");
     const std::regex COMMENT_BLOCK(R"(^/\*(.|\r|\n)*?\*/)");
 
