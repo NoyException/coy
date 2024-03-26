@@ -1,4 +1,5 @@
 ﻿#include <iostream>
+#include <fstream>
 
 #include "frontend/Lexer.h"
 #include "frontend/Parser.h"
@@ -6,31 +7,33 @@
 using namespace coy;
 
 int main(int argc, char *argv[]) {
-//    std::string filename = argv[1];
-//    Lexer lexer("-(-1.5+--2)*3");
-//    Lexer lexer("-1 && 1+2>3 || 3-1==2");
-//    Lexer lexer("a[1+c[3]]+b");
-//    Lexer lexer("{a[1+c[3]] = b;1+2;}");
-//    Lexer lexer("{"
-//                "if(1+1){"
-//                "a=1;"
-//                "}"
-//                "else a=2;"
-//                "}");
-    Lexer lexer("{int a = 1,b[10][2];b[1][0]=a+1;}");
+    //读取文件名并打开文件
+    if (argc != 2) {
+        std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
+        return -1;
+    }
+    std::ifstream file(argv[1]);
+    if (!file.is_open()) {
+        std::cerr << "Cannot open file " << argv[1] << std::endl;
+        return -1;
+    }
+    //读取文件内容
+    std::string content;
+    std::string line;
+    while (std::getline(file, line)) {
+        content += line + '\n';
+    }
+    //词法分析
+    Lexer lexer(content);
     auto tokens = lexer.tokenize();
     Input<Token> input(std::make_shared<std::vector<Token>>(tokens));
-//    Input<Token> input(std::make_shared<std::vector<Token>>(std::vector<Token>{
-//        {TYPE_INTEGER, "1"},
-//        {TYPE_OPERATOR, "*"},
-//        {TYPE_INTEGER, "2"}
-//    }));
+    //语法分析
     auto parser = CoyParsers::PARSER;
     auto result = parser->parse(input);
-    if (result.isSuccess())
+    if (result.isSuccess()){
         std::cout<<result.data()->toString();
-    else
-        std::cout<<result.message();
-//    std::cout<<parseExpression.parse(tokens).value->toString();
-    return 0;
+        return 0;
+    }
+    std::cout<<result.message();
+    return -1;
 }

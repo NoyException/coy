@@ -131,6 +131,19 @@ namespace coy {
         Parser &operator=(std::function<Output<I, O>(Input<I>)> parseFunction) {
             _parseFunction = parseFunction;
         }
+        
+        template<typename O2>
+        std::shared_ptr<Parser<I, O2>> as(){
+            auto self = this->shared_from_this();
+            return std::make_shared<Parser<I, O2>>([self](Input<I> input) -> Output<I, O2> {
+                auto result = self->parse(input);
+                if (result.isSuccess()) {
+                    return Output<I, O2>::success(O2(result.data()), result.next());
+                } else {
+                    return Output<I, O2>::fail(result.message(), result.next());
+                }
+            });
+        }
 
         /**
          * 返回一个功能如下的Parser：先尝试解析当前Parser，如果失败则尝试解析other。
@@ -448,9 +461,9 @@ namespace coy {
         using BinaryOperator = std::function<std::shared_ptr<Node>(const std::shared_ptr<Node> &,
                                                                    const std::shared_ptr<Node> &)>;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeIdentifier>>> IDENTIFIER;
-        
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> INTEGER;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> FLOAT;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeDataType>>> DATA_TYPE;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeInteger>>> INTEGER;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeFloat>>> FLOAT;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> NUMBER;
         static const std::shared_ptr<Parser<Token, BinaryOperator>> ADD_SUB;
         static const std::shared_ptr<Parser<Token, BinaryOperator>> MUL_DIV;
@@ -463,6 +476,7 @@ namespace coy {
         static const std::shared_ptr<Parser<Token, Token>> MINUS;
         static const std::shared_ptr<Parser<Token, Token>> NOT;
         static const std::shared_ptr<Parser<Token, Token>> UNARY_OPERATOR;
+        static const std::shared_ptr<Parser<Token, Token>> COMMA;
         static const std::shared_ptr<Parser<Token, Token>> LEFT_ROUND_BRACKET;
         static const std::shared_ptr<Parser<Token, Token>> RIGHT_ROUND_BRACKET;
         static const std::shared_ptr<Parser<Token, Token>> LEFT_SQUARE_BRACKET;
@@ -480,15 +494,31 @@ namespace coy {
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> EXPRESSION;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> ROUND_BRACKET_EXPRESSION;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> SQUARE_BRACKET_EXPRESSION;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> LEFT_VALUE;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeLeftValue>>> LEFT_VALUE;
+        
+        static const std::shared_ptr<Parser<Token, Token>> IF;
+        static const std::shared_ptr<Parser<Token, Token>> ELSE;
+        static const std::shared_ptr<Parser<Token, Token>> WHILE;
+        static const std::shared_ptr<Parser<Token, Token>> RETURN;
+        static const std::shared_ptr<Parser<Token, Token>> BREAK;
+        static const std::shared_ptr<Parser<Token, Token>> CONTINUE;
         
         static const std::shared_ptr<Parser<Token, Token>> END_LINE;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> VARIABLE_DEFINITION;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> VARIABLE_DECLARATION;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeDefinition>>> VARIABLE_DEFINITION;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeDeclaration>>> VARIABLE_DECLARATION;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> ASSIGNMENT;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> STATEMENT;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> IF_STATEMENT;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> CODE_BLOCK;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeIf>>> IF_STATEMENT;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeWhile>>> WHILE_STATEMENT;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeBreak>>> BREAK_STATEMENT;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeContinue>>> CONTINUE_STATEMENT;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeReturn>>> RETURN_STATEMENT;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeBlock>>> CODE_BLOCK;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeFunctionParameter>>> FUNCTION_PARAMETER;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeFunction>>> FUNCTION;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeFunctionCall>>> FUNCTION_CALL;
+        
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeProgram>>> PROGRAM;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> PARSER;
         static const int initializer;
     };

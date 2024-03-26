@@ -60,7 +60,7 @@ namespace coy {
                _body->toString(height + 1) + (_else ? "\n" + _else->toString(height + 1) : "");
     }
 
-    NodeAssignment::NodeAssignment(const std::shared_ptr<Node> &left, const std::shared_ptr<Node> &statement) :
+    NodeAssignment::NodeAssignment(const std::shared_ptr<NodeLeftValue> &left, const std::shared_ptr<Node> &statement) :
             Node(NodeType::ASSIGNMENT), _left(left), _statement(statement) {
 
     }
