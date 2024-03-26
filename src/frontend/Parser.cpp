@@ -156,13 +156,16 @@ namespace coy {
                 return Parsers::many(SQUARE_BRACKET_EXPRESSION)->map<std::shared_ptr<Node>>(
                         [node](const std::vector<std::shared_ptr<Node>> &nodes) {
                             for (const auto &item: nodes) {
-                                node->addArg(item);
+                                node->addIndex(item);
                             }
                             return (std::shared_ptr<Node>) node;
                         }
                 );
             });
 
+    const std::shared_ptr<Parser<Token, Token>> CoyParsers::END_LINE =
+            generateSeparator(";")->label("';' expected");
+    
     //var_def = identifier ('[' int ']')* ('=' expr)?
     const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> CoyParsers::VARIABLE_DEFINITION =
             IDENTIFIER->bind<std::shared_ptr<Node>>(
@@ -172,6 +175,7 @@ namespace coy {
                         )->map<std::vector<int>>([identifier](
                                 const std::vector<std::shared_ptr<Node>> &nodes) -> std::vector<int> {
                             std::vector<int> result;
+                            result.reserve(nodes.size());
                             for (const auto &node: nodes) {
                                 result.push_back(std::dynamic_pointer_cast<NodeInteger>(node)->getNumber());
                             }
@@ -184,7 +188,7 @@ namespace coy {
                                             ->map<std::shared_ptr<Node>>([identifier, args](
                                                     const std::shared_ptr<Node> &expr) -> std::shared_ptr<Node> {
                                                 auto node = std::make_shared<NodeDefinition>(identifier, expr);
-                                                for (const auto &item: args){
+                                                for (const auto &item: args) {
                                                     node->addDimension(item);
                                                 }
                                                 return node;
@@ -192,19 +196,32 @@ namespace coy {
                                 }
                         );
                     });
-
-//            ->skip(ASSIGN)->bind<Node>(
-//                    [](const std::shared_ptr<Node> &identifier) -> std::shared_ptr<Parser<Token, Node>> {
-//                        return EXPRESSION->map<Node>(
-//                                [identifier](const std::shared_ptr<Node> &expr) -> std::shared_ptr<Node> {
-//                                    return std::make_shared<NodeDefinition>(identifier, expr);
-//                                }
-//                        );
-//                    }
-//            );
-
-    const std::shared_ptr<Parser<Token, Token>> CoyParsers::END_STATEMENT =
-            generateSeparator(";")->label("';' expected");
+    
+    //var_decl = data_type var_def (',' var_def)* ';'
+    const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> CoyParsers::VARIABLE_DECLARATION =
+            Parsers::satisfy<Token>([](const Token &token) {
+                return token.type == TYPE_DATA_TYPE;
+            })->bind<std::shared_ptr<Node>>(
+                    [](const Token &token) {
+                        return VARIABLE_DEFINITION->bind<std::shared_ptr<Node>>(
+                                [token](const std::shared_ptr<Node> &node) {
+                                    return Parsers::many(
+                                            Parsers::satisfy<Token>([](const Token &token) {
+                                                return token.type == TYPE_SEPARATOR && token.value == ",";
+                                            })->then(VARIABLE_DEFINITION)
+                                    )->map<std::shared_ptr<Node>>([token, node](
+                                            const std::vector<std::shared_ptr<Node>> &nodes) -> std::shared_ptr<Node> {
+                                        auto result = std::make_shared<NodeDeclaration>(token.value);
+                                        result->addDefinition(node);
+                                        for (const auto &item: nodes) {
+                                            result->addDefinition(item);
+                                        }
+                                        return result;
+                                    })->skip(END_LINE);
+                                }
+                        );
+                    }
+            );
 
     //assignment = left_value '=' expr ';'
     const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> CoyParsers::ASSIGNMENT =
@@ -250,9 +267,9 @@ namespace coy {
                                 );
                             });
 
-    //TODO: many STATEMENT或DECLARATION
+    //code_block = '{' (statement | var_decl)* '}'
     const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> CoyParsers::CODE_BLOCK =
-            LEFT_BRACE->then(Parsers::many(STATEMENT))->skip(RIGHT_BRACE)->map<std::shared_ptr<Node>>(
+            LEFT_BRACE->then(Parsers::many(STATEMENT->orElse(VARIABLE_DECLARATION)))->skip(RIGHT_BRACE)->map<std::shared_ptr<Node>>(
                     [](const std::vector<std::shared_ptr<Node>> &nodes) {
                         auto block = std::make_shared<NodeBlock>();
                         for (const auto &node: nodes) {
@@ -270,8 +287,8 @@ namespace coy {
         (*TERM) = *Parsers::any({NUMBER, LEFT_VALUE, ROUND_BRACKET_EXPRESSION});
         (*STATEMENT) = *Parsers::any({
                                              CODE_BLOCK,
-                                             EXPRESSION->skip(END_STATEMENT),
-                                             ASSIGNMENT->skip(END_STATEMENT),
+                                             EXPRESSION->skip(END_LINE),
+                                             ASSIGNMENT->skip(END_LINE),
                                              IF_STATEMENT});
         return 0;
     }();

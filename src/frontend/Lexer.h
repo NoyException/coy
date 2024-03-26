@@ -17,7 +17,7 @@ namespace coy {
     const std::regex INTEGER("^[0-9]+");
     const std::regex FLOAT("^[0-9]+\\.[0-9]+");
     const std::regex OPERATOR(R"(^([\+\-\*\/]|==|!=|<=|>=|<|>|=|&&|\|\|))");
-    const std::regex SEPARATOR(R"(^[\(\)\[\]\{\};])");
+    const std::regex SEPARATOR(R"(^[\(\)\[\]\{\};,])");
     const std::regex DATA_TYPE(R"(^(int|float|char|bool|void))");
     const std::regex KEY_WORD(R"(^(if|else|while))");
     

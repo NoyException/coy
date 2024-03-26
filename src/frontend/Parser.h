@@ -481,10 +481,10 @@ namespace coy {
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> ROUND_BRACKET_EXPRESSION;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> SQUARE_BRACKET_EXPRESSION;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> LEFT_VALUE;
+        
+        static const std::shared_ptr<Parser<Token, Token>> END_LINE;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> VARIABLE_DEFINITION;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> VARIABLE_DECLARATION;
-
-        static const std::shared_ptr<Parser<Token, Token>> END_STATEMENT;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> ASSIGNMENT;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> STATEMENT;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> IF_STATEMENT;

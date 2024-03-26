@@ -78,7 +78,7 @@ namespace coy {
     class NodeIdentifier : public Node {
     private:
         std::string _name;
-        std::vector<std::shared_ptr<Node>> _args{};
+        std::vector<std::shared_ptr<Node>> _indexes{};
     public:
         static const NodeType TYPE = NodeType::IDENTIFIER;
 
@@ -86,19 +86,19 @@ namespace coy {
 
         [[nodiscard]] std::string toString(int height) const override {
             std::string str = std::string(height * 2, ' ') + "identifier " + _name;
-            if (!_args.empty())
-                str += " with args";
-            for (const auto &arg: _args) {
+            if (!_indexes.empty())
+                str += " with indexes";
+            for (const auto &arg: _indexes) {
                 str += "\n" + arg->toString(height + 1);
             }
             return str;
         }
 
-        void addArg(const std::shared_ptr<Node> &arg) {
-            _args.push_back(arg);
+        void addIndex(const std::shared_ptr<Node> &index) {
+            _indexes.push_back(index);
         }
 
-        [[nodiscard]] std::vector<std::shared_ptr<Node>> getArgs() const { return _args; }
+        [[nodiscard]] std::vector<std::shared_ptr<Node>> getIndexes() const { return _indexes; }
 
         [[nodiscard]] std::string getName() const { return _name; }
     };
@@ -197,9 +197,9 @@ namespace coy {
                 Node(NodeType::DEFINITION), _identifier(identifier), _initialValue(initialValue) {}
 
         [[nodiscard]] std::string toString(int height) const override {
-            std::string str = std::string(height * 2, ' ') + "definition\n" + _identifier->toString(height + 1);
+            std::string str = std::string(height * 2, ' ') + "definition";
             if(!_dimensions.empty()){
-                str += "\n" + std::string(height * 2, ' ') + "with dimensions (";
+                str += " with dimensions (";
                 for (int i = 0; i < _dimensions.size(); ++i) {
                     str += std::to_string(_dimensions[i]);
                     if (i != _dimensions.size() - 1)
@@ -207,6 +207,7 @@ namespace coy {
                 }
                 str += ")";
             }
+            str += "\n" + _identifier->toString(height + 1);
             if (_initialValue)
                 str += "\n" + _initialValue->toString(height + 1);
             return str;
@@ -221,6 +222,32 @@ namespace coy {
         [[nodiscard]] std::shared_ptr<Node> getInitialValue() const { return _initialValue; }
 
         [[nodiscard]] std::vector<int> getDimensions() const { return _dimensions; }
+    };
+    
+    class NodeDeclaration : public Node {
+    private:
+        std::string _type;
+        std::vector<std::shared_ptr<Node>> _definitions{};
+    public:
+        static const NodeType TYPE = NodeType::DECLARATION;
+
+        explicit NodeDeclaration(std::string type) : Node(NodeType::DECLARATION), _type(std::move(type)) {}
+
+        [[nodiscard]] std::string toString(int height) const override {
+            std::string str = std::string(height * 2, ' ') + "declaration " + _type;
+            for (const auto &definition: _definitions) {
+                str += "\n" + definition->toString(height + 1);
+            }
+            return str;
+        }
+
+        void addDefinition(const std::shared_ptr<Node> &definition) {
+            _definitions.push_back(definition);
+        }
+
+        [[nodiscard]] std::string getVariableType() const { return _type; }
+
+        [[nodiscard]] std::vector<std::shared_ptr<Node>> getDefinitions() const { return _definitions; }
     };
 
     class NodeAssignment : public Node {

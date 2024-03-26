@@ -11,13 +11,13 @@ int main(int argc, char *argv[]) {
 //    Lexer lexer("-1 && 1+2>3 || 3-1==2");
 //    Lexer lexer("a[1+c[3]]+b");
 //    Lexer lexer("{a[1+c[3]] = b;1+2;}");
-    Lexer lexer("{"
-                "if(1+1){"
-                "a=1;"
-                "}"
-                "else a=2;"
-                "}");
-//    Lexer lexer("a = 1;");
+//    Lexer lexer("{"
+//                "if(1+1){"
+//                "a=1;"
+//                "}"
+//                "else a=2;"
+//                "}");
+    Lexer lexer("{int a = 1,b[10][2];b[1][0]=a+1;}");
     auto tokens = lexer.tokenize();
     Input<Token> input(std::make_shared<std::vector<Token>>(tokens));
 //    Input<Token> input(std::make_shared<std::vector<Token>>(std::vector<Token>{
