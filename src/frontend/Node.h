@@ -22,6 +22,8 @@ namespace coy {
         BINARY_OPERATOR,
         IF,
         WHILE,
+        DEFINITION,
+        DECLARATION,
         ASSIGNMENT,
         BLOCK,
         FUNCTION,
@@ -181,6 +183,44 @@ namespace coy {
         [[nodiscard]] std::shared_ptr<Node> getBody() const { return _body; }
 
         [[nodiscard]] std::shared_ptr<Node> getElse() const { return _else; }
+    };
+    
+    class NodeDefinition : public Node {
+    private:
+        std::shared_ptr<Node> _identifier;
+        std::shared_ptr<Node> _initialValue;
+        std::vector<int> _dimensions{};
+    public:
+        static const NodeType TYPE = NodeType::DEFINITION;
+
+        explicit NodeDefinition(const std::shared_ptr<Node> &identifier, const std::shared_ptr<Node> &initialValue) :
+                Node(NodeType::DEFINITION), _identifier(identifier), _initialValue(initialValue) {}
+
+        [[nodiscard]] std::string toString(int height) const override {
+            std::string str = std::string(height * 2, ' ') + "definition\n" + _identifier->toString(height + 1);
+            if(!_dimensions.empty()){
+                str += "\n" + std::string(height * 2, ' ') + "with dimensions (";
+                for (int i = 0; i < _dimensions.size(); ++i) {
+                    str += std::to_string(_dimensions[i]);
+                    if (i != _dimensions.size() - 1)
+                        str += ", ";
+                }
+                str += ")";
+            }
+            if (_initialValue)
+                str += "\n" + _initialValue->toString(height + 1);
+            return str;
+        }
+
+        void addDimension(int dimension) {
+            _dimensions.push_back(dimension);
+        }
+
+        [[nodiscard]] std::shared_ptr<Node> getIdentifier() const { return _identifier; }
+
+        [[nodiscard]] std::shared_ptr<Node> getInitialValue() const { return _initialValue; }
+
+        [[nodiscard]] std::vector<int> getDimensions() const { return _dimensions; }
     };
 
     class NodeAssignment : public Node {

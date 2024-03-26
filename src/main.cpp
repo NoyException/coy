@@ -17,6 +17,7 @@ int main(int argc, char *argv[]) {
                 "}"
                 "else a=2;"
                 "}");
+//    Lexer lexer("a = 1;");
     auto tokens = lexer.tokenize();
     Input<Token> input(std::make_shared<std::vector<Token>>(tokens));
 //    Input<Token> input(std::make_shared<std::vector<Token>>(std::vector<Token>{
