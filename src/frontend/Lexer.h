@@ -19,11 +19,13 @@ namespace coy {
     const std::regex OPERATOR(R"(^([\+\-\*\/]|==|!=|<=|>=|<|>|=|&&|\|\|))");
     const std::regex SEPARATOR(R"(^[\(\)\[\]\{\};,])");
     const std::regex DATA_TYPE(R"(^(int|float|char|bool|void))");
-    const std::regex KEY_WORD(R"(^(if|else|while))");
-    
-    //TODO: 补充其他正则表达式
+    const std::regex KEY_WORD(R"(^(if|else|while|break|continue|return))");
+    const std::regex COMMENT(R"(^//.*\n?)");
+    const std::regex COMMENT_BLOCK(R"(^/\*(.|\n)*?\*/)");
 
     const std::list<std::pair<std::regex, int>> DEFAULT_PATTERNS = {
+            {COMMENT,    TYPE_COMMENT},
+            {COMMENT_BLOCK, TYPE_COMMENT},
             {FLOAT,      TYPE_FLOAT},
             {INTEGER,    TYPE_INTEGER},
             {OPERATOR,   TYPE_OPERATOR},
@@ -35,14 +37,16 @@ namespace coy {
 
     class Lexer {
     private:
-        std::stringstream stream;
-        std::list<std::pair<std::regex, int>> patterns;
+        std::string _content;
+        std::list<std::pair<std::regex, int>> _patterns;
+        void trim();
     public:
-        explicit Lexer(const std::string &string, std::list<std::pair<std::regex, int>> patterns = DEFAULT_PATTERNS);
+        explicit Lexer(std::string content, std::list<std::pair<std::regex, int>> patterns = DEFAULT_PATTERNS);
 
         Token nextToken();
 
-        std::vector<Token> tokenize();
+        std::vector<Token> tokenize(const std::function<bool(const Token&)>& filter =
+                [](const Token& token){return token.type != TYPE_COMMENT;});
     };
 
 } // coy
