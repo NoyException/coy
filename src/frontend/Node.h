@@ -391,13 +391,13 @@ namespace coy {
         std::shared_ptr<NodeDataType> _type;
         std::shared_ptr<NodeIdentifier> _identifier;
         bool _isPointer;
-        std::vector<int> _dimensions{};
+        std::vector<int> _dimensions;
     public:
         static const NodeType TYPE = NodeType::FUNCTION_PARAMETER;
 
         explicit NodeFunctionParameter(const std::shared_ptr<NodeDataType> &type,
-                                       const std::shared_ptr<NodeIdentifier> &identifier, bool isPointer) :
-                Node(NodeType::FUNCTION_PARAMETER), _type(type), _identifier(identifier), _isPointer(isPointer) {}
+                                       const std::shared_ptr<NodeIdentifier> &identifier, bool isPointer, const std::vector<int>& dimensions = {}) :
+                Node(NodeType::FUNCTION_PARAMETER), _type(type), _identifier(identifier), _isPointer(isPointer), _dimensions(dimensions) {}
 
         [[nodiscard]] std::string toString(int height) const override {
             std::string str = std::string(height * 2, ' ') + "parameter";
@@ -413,10 +413,6 @@ namespace coy {
             str += "\n" + _type->toString(height + 1);
             str += "\n" + _identifier->toString(height + 1);
             return str;
-        }
-
-        void addDimension(int dimension) {
-            _dimensions.push_back(dimension);
         }
 
         [[nodiscard]] std::shared_ptr<NodeDataType> getVariableType() const { return _type; }

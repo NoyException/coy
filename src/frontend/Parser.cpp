@@ -332,7 +332,7 @@ namespace coy {
                                 return block;
                             });
 
-    //function_param = data_type identifier ("[]")? ('[' int ']')*
+    //function_param = data_type identifier ("[]" ('[' int ']')*)?
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeFunctionParameter>>> CoyParsers::FUNCTION_PARAMETER =
             DATA_TYPE->bind<std::shared_ptr<NodeFunctionParameter>>(
                     [](const std::shared_ptr<NodeDataType> &type) {
@@ -340,35 +340,30 @@ namespace coy {
                                 [type](const std::shared_ptr<NodeIdentifier> &identifier) {
                                     return LEFT_SQUARE_BRACKET
                                             ->then(RIGHT_SQUARE_BRACKET)
-                                            ->map<bool>([](const Token &) {
-                                                return true;
-                                            })
-                                            ->orElse(Parsers::pure<Token, bool>(false))
-                                            ->bind<std::shared_ptr<NodeFunctionParameter>>(
-                                                    [type, identifier](bool isPointer) {
-                                                        return Parsers::many(
-                                                                LEFT_SQUARE_BRACKET->then(INTEGER)->skip(
-                                                                        RIGHT_SQUARE_BRACKET))
-                                                                ->map<std::vector<int>>(
-                                                                        [](const std::vector<std::shared_ptr<NodeInteger>> &nodes) {
-                                                                            std::vector<int> result;
-                                                                            result.reserve(nodes.size());
-                                                                            for (const auto &node: nodes) {
-                                                                                result.push_back(node->getNumber());
-                                                                            }
-                                                                            return result;
-                                                                        })
-                                                                ->map<std::shared_ptr<NodeFunctionParameter>>(
-                                                                        [type, identifier, isPointer](
-                                                                                const std::vector<int> &args) {
-                                                                            auto node = std::make_shared<NodeFunctionParameter>(
-                                                                                    type, identifier, isPointer);
-                                                                            for (const auto &item: args) {
-                                                                                node->addDimension(item);
-                                                                            }
-                                                                            return node;
-                                                                        });
+                                            ->then(Parsers::many(
+                                                    LEFT_SQUARE_BRACKET->then(INTEGER)->skip(RIGHT_SQUARE_BRACKET)))
+                                            ->map<std::vector<int>>(
+                                                    [](const std::vector<std::shared_ptr<NodeInteger>> &nodes) {
+                                                        std::vector<int> result;
+                                                        result.reserve(nodes.size());
+                                                        for (const auto &node: nodes) {
+                                                            result.push_back(node->getNumber());
+                                                        }
+                                                        return result;
                                                     }
+                                            )
+                                            ->map<std::shared_ptr<NodeFunctionParameter>>(
+                                                    [type, identifier](
+                                                            const std::vector<int> &args) {
+                                                        auto node = std::make_shared<NodeFunctionParameter>(
+                                                                type, identifier, true, args);
+                                                        return node;
+                                                    })
+                                            ->orElse(
+                                                    Parsers::pure<Token, std::shared_ptr<NodeFunctionParameter>>(
+                                                            std::make_shared<NodeFunctionParameter>(type, identifier,
+                                                                                                    false)
+                                                    )
                                             );
                                 }
                         );
@@ -403,34 +398,37 @@ namespace coy {
                     }
             );
 
-    //function_call = identifier '(' expr (',' expr)* ')'
+    //function_call = identifier '(' (expr (',' expr)*)? ')'
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeFunctionCall>>> CoyParsers::FUNCTION_CALL =
             IDENTIFIER->bind<std::shared_ptr<NodeFunctionCall>>(
                     [](const std::shared_ptr<NodeIdentifier> &identifier) {
                         return LEFT_ROUND_BRACKET
-                                ->then(EXPRESSION)
-                                ->bind<std::shared_ptr<NodeFunctionCall>>(
-                                        [identifier](const std::shared_ptr<Node> &expr) {
-                                            return Parsers::many(COMMA->then(EXPRESSION))
-                                                    ->map<std::vector<std::shared_ptr<Node>>>(
-                                                            [expr](const std::vector<std::shared_ptr<Node>> &nodes) {
-                                                                std::vector<std::shared_ptr<Node>> result;
-                                                                result.reserve(nodes.size() + 1);
-                                                                result.push_back(expr);
-                                                                for (const auto &node: nodes) {
-                                                                    result.push_back(node);
-                                                                }
-                                                                return result;
-                                                            }
-                                                    )
-                                                    ->skip(RIGHT_ROUND_BRACKET)
-                                                    ->map<std::shared_ptr<NodeFunctionCall>>(
-                                                            [identifier](
-                                                                    const std::vector<std::shared_ptr<Node>> &args) {
-                                                                return std::make_shared<NodeFunctionCall>(identifier,
-                                                                                                          args);
-                                                            }
-                                                    );
+                                ->then(
+                                        EXPRESSION->bind<std::vector<std::shared_ptr<Node>>>(
+                                                        [identifier](const std::shared_ptr<Node> &expr) {
+                                                            return Parsers::many(COMMA->then(EXPRESSION))
+                                                                    ->map<std::vector<std::shared_ptr<Node>>>(
+                                                                            [expr](const std::vector<std::shared_ptr<Node>> &nodes) {
+                                                                                std::vector<std::shared_ptr<Node>> result;
+                                                                                result.reserve(nodes.size() + 1);
+                                                                                result.push_back(expr);
+                                                                                for (const auto &node: nodes) {
+                                                                                    result.push_back(node);
+                                                                                }
+                                                                                return result;
+                                                                            }
+                                                                    );
+                                                        }
+                                                )
+                                                ->orElse(Parsers::pure<Token, std::vector<std::shared_ptr<Node>>>(
+                                                        std::vector<std::shared_ptr<Node>>()))
+                                )
+                                ->skip(RIGHT_ROUND_BRACKET)
+                                ->map<std::shared_ptr<NodeFunctionCall>>(
+                                        [identifier](
+                                                const std::vector<std::shared_ptr<Node>> &args) {
+                                            return std::make_shared<NodeFunctionCall>(
+                                                    identifier, args);
                                         }
                                 );
                     });

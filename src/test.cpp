@@ -19,7 +19,7 @@ int main(int argc, char *argv[]) {
     });
     if (it != tokens.end()) {
         std::cerr << "Unknown token: " << it->value << std::endl;
-        return -1;
+        return 1;
     }
     Input<Token> input(std::make_shared<std::vector<Token>>(tokens));
     //语法分析
@@ -30,5 +30,5 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     std::cout<<result.message();
-    return -1;
+    return 2;
 }
