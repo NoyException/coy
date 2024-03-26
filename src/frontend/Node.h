@@ -273,7 +273,10 @@ namespace coy {
         explicit NodeReturn(const std::shared_ptr<Node> &statement) : Node(NodeType::RETURN), _statement(statement) {}
 
         [[nodiscard]] std::string toString(int height) const override {
-            return std::string(height * 2, ' ') + "return\n" + _statement->toString(height + 1);
+            std::string str = std::string(height * 2, ' ') + "return";
+            if (_statement)
+                str += "\n" + _statement->toString(height + 1);
+            return str;
         }
 
         [[nodiscard]] std::shared_ptr<Node> getStatement() const { return _statement; }

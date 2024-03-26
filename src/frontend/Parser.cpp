@@ -312,9 +312,11 @@ namespace coy {
                         return std::make_shared<NodeContinue>();
                     });
 
-    //return_statement = 'return' expr ';'
+    //return_statement = 'return' (expr)? ';'
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeReturn>>> CoyParsers::RETURN_STATEMENT =
-            RETURN->then(EXPRESSION)->skip(END_LINE)->map<std::shared_ptr<NodeReturn>>(
+            RETURN->then(EXPRESSION->orElse(
+                    Parsers::pure<Token, std::shared_ptr<Node>>(nullptr)
+            ))->skip(END_LINE)->map<std::shared_ptr<NodeReturn>>(
                     [](const std::shared_ptr<Node> &expr) {
                         return std::make_shared<NodeReturn>(expr);
                     });
