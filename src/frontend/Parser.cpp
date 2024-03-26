@@ -372,14 +372,35 @@ namespace coy {
                     }
             );
 
-    //function = data_type identifier '(' (function_param)* ')' code_block
+    //function = data_type identifier '(' (function_param(','function_param)*)? ')' code_block
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeFunction>>> CoyParsers::FUNCTION =
             DATA_TYPE->bind<std::shared_ptr<NodeFunction>>(
                     [](const std::shared_ptr<NodeDataType> &type) {
                         return IDENTIFIER->bind<std::shared_ptr<NodeFunction>>(
                                 [type](const std::shared_ptr<NodeIdentifier> &identifier) {
                                     return LEFT_ROUND_BRACKET
-                                            ->then(Parsers::many(FUNCTION_PARAMETER))
+                                            ->then(FUNCTION_PARAMETER->bind<std::vector<std::shared_ptr<NodeFunctionParameter>>>(
+                                                            [type, identifier](
+                                                                    const std::shared_ptr<NodeFunctionParameter> &param) {
+                                                                return Parsers::many(
+                                                                        COMMA->then(FUNCTION_PARAMETER))
+                                                                        ->map<std::vector<std::shared_ptr<NodeFunctionParameter>>>(
+                                                                                [param](const std::vector<std::shared_ptr<NodeFunctionParameter>> &nodes) {
+                                                                                    std::vector<std::shared_ptr<NodeFunctionParameter>> result;
+                                                                                    result.reserve(nodes.size() + 1);
+                                                                                    result.push_back(param);
+                                                                                    for (const auto &node: nodes) {
+                                                                                        result.push_back(node);
+                                                                                    }
+                                                                                    return result;
+                                                                                }
+                                                                        );
+                                                            }
+                                                    )
+                                                           ->orElse(
+                                                                   Parsers::pure<Token, std::vector<std::shared_ptr<NodeFunctionParameter>>>(
+                                                                           std::vector<std::shared_ptr<NodeFunctionParameter>>()))
+                                            )
                                             ->skip(RIGHT_ROUND_BRACKET)
                                             ->bind<std::shared_ptr<NodeFunction>>(
                                                     [type, identifier](
