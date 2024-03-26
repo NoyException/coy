@@ -466,7 +466,7 @@ namespace coy {
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeFloat>>> FLOAT;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> NUMBER;
         static const std::shared_ptr<Parser<Token, BinaryOperator>> ADD_SUB;
-        static const std::shared_ptr<Parser<Token, BinaryOperator>> MUL_DIV;
+        static const std::shared_ptr<Parser<Token, BinaryOperator>> MUL_DIV_MOD;
         static const std::shared_ptr<Parser<Token, BinaryOperator>> INEQUALITY_OPERATOR;
         static const std::shared_ptr<Parser<Token, BinaryOperator>> EQUALITY_OPERATOR;
         static const std::shared_ptr<Parser<Token, BinaryOperator>> LOGICAL_AND;

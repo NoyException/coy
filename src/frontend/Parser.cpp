@@ -50,8 +50,8 @@ namespace coy {
     const std::shared_ptr<Parser<Token, CoyParsers::BinaryOperator>> CoyParsers::ADD_SUB = generateBinaryOperators(
             {"+", "-"});
 
-    const std::shared_ptr<Parser<Token, CoyParsers::BinaryOperator>> CoyParsers::MUL_DIV = generateBinaryOperators(
-            {"*", "/"});
+    const std::shared_ptr<Parser<Token, CoyParsers::BinaryOperator>> CoyParsers::MUL_DIV_MOD = generateBinaryOperators(
+            {"*", "/", "%"});
 
     const std::shared_ptr<Parser<Token, CoyParsers::BinaryOperator>> CoyParsers::INEQUALITY_OPERATOR = generateBinaryOperators(
             {"<", ">", "<=", ">="});
@@ -122,9 +122,9 @@ namespace coy {
                     }
             )->orElse(CoyParsers::TERM);
 
-    //product = term (MUL_DIV term)*
+    //product = term (MUL_DIV_MOD term)*
     const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> CoyParsers::PRODUCT =
-            SIGNED_TERM->chainLeft(MUL_DIV);
+            SIGNED_TERM->chainLeft(MUL_DIV_MOD);
 
     //sum = product (ADD_SUB product)*
     const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> CoyParsers::SUM =
