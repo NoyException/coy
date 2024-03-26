@@ -7,22 +7,10 @@
 using namespace coy;
 
 int main(int argc, char *argv[]) {
-    //读取文件名并打开文件
-    if (argc != 2) {
-        std::cerr << "Usage: " << argv[0] << " <filename>" << std::endl;
-        return -1;
-    }
-    std::ifstream file(argv[1]);
-    if (!file.is_open()) {
-        std::cerr << "Cannot open file " << argv[1] << std::endl;
-        return -1;
-    }
-    //读取文件内容
-    std::string content;
-    std::string line;
-    while (std::getline(file, line)) {
-        content += line + '\n';
-    }
+    std::string content = "int main () {\n"
+                          "  int a = 1;\n"
+                          "  int b = a@2;\n"
+                          "}";
     //词法分析
     Lexer lexer(content);
     auto tokens = lexer.tokenize();
@@ -42,5 +30,5 @@ int main(int argc, char *argv[]) {
         return 0;
     }
     std::cout<<result.message();
-    return -2;
+    return -1;
 }

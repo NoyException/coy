@@ -27,6 +27,7 @@ namespace coy {
                 return {pair.second, token.substr(0, len)};
             }
         }
+        _content = _content.substr(1);
         return {TYPE_UNKNOWN, _content.substr(0, 1)};
     }
 

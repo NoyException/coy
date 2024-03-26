@@ -20,8 +20,8 @@ namespace coy {
     const std::regex SEPARATOR(R"(^[\(\)\[\]\{\};,])");
     const std::regex DATA_TYPE(R"(^(int|float|char|bool|void))");
     const std::regex KEY_WORD(R"(^(if|else|while|break|continue|return))");
-    const std::regex COMMENT(R"(^//.*\n?)");
-    const std::regex COMMENT_BLOCK(R"(^/\*(.|\n)*?\*/)");
+    const std::regex COMMENT(R"(^//.*\r?\n?)");
+    const std::regex COMMENT_BLOCK(R"(^/\*(.|\r|\n)*?\*/)");
 
     const std::list<std::pair<std::regex, int>> DEFAULT_PATTERNS = {
             {COMMENT,    TYPE_COMMENT},

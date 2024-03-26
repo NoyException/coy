@@ -17,9 +17,9 @@
 #define TYPE_INTEGER 101
 #define TYPE_FLOAT 102
 #define TYPE_STRING 103
-#define TYPE_EOF -1
-#define TYPE_UNKNOWN -2
-#define TYPE_COMMENT -3
+#define TYPE_EOF (-1)
+#define TYPE_UNKNOWN (-2)
+#define TYPE_COMMENT (-3)
 
 namespace coy {
 
