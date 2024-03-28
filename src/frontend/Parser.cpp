@@ -162,12 +162,8 @@ namespace coy {
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeLeftValue>>> CoyParsers::LEFT_VALUE =
             IDENTIFIER->bind<std::shared_ptr<NodeLeftValue>>([](const std::shared_ptr<NodeIdentifier> &identifier) {
                 return Parsers::many(SQUARE_BRACKET_EXPRESSION)->map<std::shared_ptr<NodeLeftValue>>(
-                        [identifier](const std::vector<std::shared_ptr<Node>> &nodes) {
-                            auto node = std::make_shared<NodeLeftValue>(identifier);
-                            for (const auto &item: nodes) {
-                                node->addIndex(item);
-                            }
-                            return node;
+                        [identifier](const std::vector<std::shared_ptr<Node>> &indexes) {
+                            return std::make_shared<NodeLeftValue>(identifier, indexes);
                         }
                 );
             });
@@ -209,16 +205,12 @@ namespace coy {
                                     return result;
                                 })
                                 ->bind<std::shared_ptr<NodeDefinition>>(
-                                        [identifier](const std::vector<int> &args) {
+                                        [identifier](const std::vector<int> &dimensions) {
                                             return ASSIGN->then(EXPRESSION)
                                                     ->orElse(Parsers::pure<Token, std::shared_ptr<Node>>(nullptr))
-                                                    ->map<std::shared_ptr<NodeDefinition>>([identifier, args](
+                                                    ->map<std::shared_ptr<NodeDefinition>>([identifier, dimensions](
                                                             const std::shared_ptr<Node> &expr) {
-                                                        auto node = std::make_shared<NodeDefinition>(identifier, expr);
-                                                        for (const auto &item: args) {
-                                                            node->addDimension(item);
-                                                        }
-                                                        return node;
+                                                        return std::make_shared<NodeDefinition>(identifier, expr, dimensions);
                                                     });
                                         }
                                 );
@@ -233,12 +225,13 @@ namespace coy {
                                     return Parsers::many(COMMA->then(VARIABLE_DEFINITION)
                                     )->map<std::shared_ptr<NodeDeclaration>>([type, node](
                                             const std::vector<std::shared_ptr<NodeDefinition>> &nodes) {
-                                        auto result = std::make_shared<NodeDeclaration>(type);
-                                        result->addDefinition(node);
+                                        std::vector<std::shared_ptr<NodeDefinition>> definitions;
+                                        definitions.reserve(nodes.size() + 1);
+                                        definitions.push_back(node);
                                         for (const auto &item: nodes) {
-                                            result->addDefinition(item);
+                                            definitions.push_back(item);
                                         }
-                                        return result;
+                                        return std::make_shared<NodeDeclaration>(type, definitions);
                                     })->skip(END_LINE);
                                 }
                         );
@@ -326,12 +319,8 @@ namespace coy {
             LEFT_BRACE->then(Parsers::many(STATEMENT->orElse(VARIABLE_DECLARATION->as<std::shared_ptr<Node>>())))
                     ->skip(RIGHT_BRACE)
                     ->map<std::shared_ptr<NodeBlock>>(
-                            [](const std::vector<std::shared_ptr<Node>> &nodes) {
-                                auto block = std::make_shared<NodeBlock>();
-                                for (const auto &node: nodes) {
-                                    block->addStatement(node);
-                                }
-                                return block;
+                            [](const std::vector<std::shared_ptr<Node>> &statements) {
+                                return std::make_shared<NodeBlock>(statements);
                             });
 
     //function_param = data_type identifier ("[]" ('[' int ']')*)?
