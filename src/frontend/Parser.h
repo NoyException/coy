@@ -40,6 +40,10 @@ namespace coy {
             return _index >= _data->size();
         }
 
+        [[nodiscard]] int getIndex() const {
+            return _index;
+        }
+
         Input operator++(int) {
             return next();
         }
@@ -48,7 +52,7 @@ namespace coy {
             return next(n);
         }
     };
-    
+
 //    template<typename I>
 //    class Message{
 //    public:
@@ -78,7 +82,7 @@ namespace coy {
     template<typename I, typename O>
     class Output {
     private:
-        const bool _success;
+        bool _success;
         std::optional<O> _data;
         std::function<std::string()> _message;
         Input<I> _next;
@@ -94,6 +98,26 @@ namespace coy {
             return Output(false, std::nullopt, [message] { return message; }, position);
         }
 
+        static Output fail(std::function<std::string()> message, Input<I> position) {
+            return Output(false, std::nullopt, message, position);
+        }
+
+        Output merge(const Output<I, O> &another) {
+            if (this->isSuccess()) {
+                return *this;
+            }
+            if (another.isSuccess()) {
+                return another;
+            }
+            auto message = this->_message;
+            auto anotherMessage = another._message;
+            return Output::fail([message, anotherMessage]() { return message() + "\n" + anotherMessage(); }, _next);
+        }
+
+        Output operator+(const Output<I, O> &another) {
+            return merge(another);
+        }
+
         [[nodiscard]] bool isSuccess() const {
             return _success;
         }
@@ -104,6 +128,10 @@ namespace coy {
 
         [[nodiscard]] std::string message() const {
             return _message();
+        }
+
+        [[nodiscard]] std::function<std::string()> messageSupplier() const {
+            return _message;
         }
 
         [[nodiscard]] Input<I> next() const {
@@ -131,9 +159,9 @@ namespace coy {
         Parser &operator=(std::function<Output<I, O>(Input<I>)> parseFunction) {
             _parseFunction = parseFunction;
         }
-        
+
         template<typename O2>
-        std::shared_ptr<Parser<I, O2>> as(){
+        std::shared_ptr<Parser<I, O2>> as() {
             auto self = this->shared_from_this();
             return std::make_shared<Parser<I, O2>>([self](Input<I> input) -> Output<I, O2> {
                 auto result = self->parse(input);
@@ -157,7 +185,7 @@ namespace coy {
                 if (result.isSuccess()) {
                     return result;
                 } else {
-                    return other->parse(input);
+                    return result + other->parse(input);
                 }
             });
         }
@@ -176,7 +204,7 @@ namespace coy {
                 if (result.isSuccess()) {
                     return other->parse(result.next());
                 } else {
-                    return Output<I, O2>::fail(result.message(), result.next());
+                    return Output<I, O2>::fail(result.messageSupplier(), result.next());
                 }
             });
         }
@@ -228,7 +256,7 @@ namespace coy {
         template<typename O2>
         std::shared_ptr<Parser<I, O>> skip(const std::shared_ptr<Parser<I, O2>> &other) const {
             auto self = this->shared_from_this();
-            return std::make_shared<Parser<I, O>>([self, other](Input<I> input) -> Output<I, O> {
+            return std::make_shared<Parser<I, O>>([self, other](Input<I> input) {
                 auto result = self->parse(input);
                 if (result.isSuccess()) {
                     auto next = other->parse(result.next());
@@ -264,7 +292,7 @@ namespace coy {
                                 left = next.data()(left, right.data());
                                 current = right.next();
                             } else {
-                                return Output<I, O>::fail(result.message(), result.next());
+                                return right;
                             }
                         } else {
                             return Output<I, O>::success(left, current);
@@ -283,7 +311,9 @@ namespace coy {
                 if (result.isSuccess()) {
                     return result;
                 } else {
-                    return Output<I, O>::fail(label, result.next());
+                    return Output<I, O>::fail([result, label]() {
+                        return result.message() + "\n" + label;
+                    }, result.next());
                 }
             });
         }
@@ -373,13 +403,15 @@ namespace coy {
         static std::shared_ptr<Parser<I, O>> any(std::initializer_list<std::shared_ptr<Parser<I, O>>> parsers) {
             std::list<std::shared_ptr<Parser<I, O>>> list(parsers);
             return std::make_shared<Parser<I, O>>([list](Input<I> input) -> Output<I, O> {
+                Output<I, O> failed = Output<I, O>::fail("No parser matched", input);
                 for (const auto &parser: list) {
                     auto result = parser->parse(input);
                     if (result.isSuccess()) {
                         return result;
                     }
+                    failed = failed + result;
                 }
-                return Output<I, O>::fail("No parser matched", input);
+                return failed;
             });
         }
 
@@ -394,9 +426,9 @@ namespace coy {
          */
         template<typename I, typename O>
         static std::shared_ptr<Parser<I, std::vector<O>>>
-        many(const std::shared_ptr<Parser<I, O>> &parser, bool atLeastOne = false) {
+        many(const std::shared_ptr<Parser<I, O>> &parser, bool atLeastOne = false, bool allConsumed = false) {
             return std::make_shared<Parser<I, std::vector<O>>>(
-                    [parser, atLeastOne](Input<I> input) -> Output<I, std::vector<O>> {
+                    [parser, atLeastOne, allConsumed](Input<I> input) -> Output<I, std::vector<O>> {
                         std::vector<O> results;
                         Input<I> current = input;
                         while (true) {
@@ -406,8 +438,11 @@ namespace coy {
                                 current = result.next();
                             } else {
                                 if (results.empty() && atLeastOne) {
-                                    return Output<I, std::vector<O>>::fail("At least one expected",
-                                                                                            input);
+                                    return Output<I, std::vector<O>>::fail("At least one expected", input)
+                                           + Output<I, std::vector<O>>::fail(result.message(), current);
+                                } else if (allConsumed && !current.end()) {
+                                    return Output<I, std::vector<O>>::fail("All input should be consumed", current)
+                                           + Output<I, std::vector<O>>::fail(result.message(), current);
                                 } else {
                                     return Output<I, std::vector<O>>::success(results, current);
                                 }
@@ -416,9 +451,17 @@ namespace coy {
                     });
         }
 
+        /**
+         * 返回一个功能如下的Parser：依次解析多个Parser，返回一个成功的结果，结果为所有解析结果的列表。
+         * @tparam I 
+         * @tparam O 
+         * @param parsers 
+         * @return 
+         */
         template<typename I, typename O>
-        static std::shared_ptr<Parser<I, O>> sequence(std::initializer_list<std::shared_ptr<Parser<I, O>>> parsers) {
-            return std::make_shared<Parser<I, O>>([parsers](Input<I> input) -> Output<I, O> {
+        static std::shared_ptr<Parser<I, std::vector<O>>>
+        sequence(std::initializer_list<std::shared_ptr<Parser<I, O>>> parsers) {
+            return std::make_shared<Parser<I, std::vector<O>>>([parsers](Input<I> input) {
                 std::vector<O> results;
                 Input<I> current = input;
                 for (const auto &parser: parsers) {
@@ -430,7 +473,7 @@ namespace coy {
                         return result;
                     }
                 }
-                return Output<I, O>::success(results, current);
+                return Output<I, std::vector<O>>::success(results, current);
             });
         }
 
@@ -442,14 +485,15 @@ namespace coy {
          * @return 
          */
         template<typename I>
-        static std::shared_ptr<Parser<I, I>> satisfy(const std::function<bool(const I &)> &predicate) {
-            return std::make_shared<Parser<I, I>>([predicate](Input<I> input) -> Output<I, I> {
+        static std::shared_ptr<Parser<I, I>> satisfy(const std::function<bool(const I &)> &predicate,
+                                                     const std::string &message = "Predicate not satisfied") {
+            return std::make_shared<Parser<I, I>>([predicate, message](Input<I> input) -> Output<I, I> {
                 if (input.end())
                     return Output<I, I>::fail("End of input", input);
                 if (predicate(input.current())) {
                     return Output<I, I>::success(input.current(), input + 1);
                 } else {
-                    return Output<I, I>::fail("Predicate not satisfied", input);
+                    return Output<I, I>::fail("At " + std::to_string(input.getIndex()) + ": " + message, input);
                 }
             });
         }
@@ -495,14 +539,14 @@ namespace coy {
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> ROUND_BRACKET_EXPRESSION;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> SQUARE_BRACKET_EXPRESSION;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeLeftValue>>> LEFT_VALUE;
-        
+
         static const std::shared_ptr<Parser<Token, Token>> IF;
         static const std::shared_ptr<Parser<Token, Token>> ELSE;
         static const std::shared_ptr<Parser<Token, Token>> WHILE;
         static const std::shared_ptr<Parser<Token, Token>> RETURN;
         static const std::shared_ptr<Parser<Token, Token>> BREAK;
         static const std::shared_ptr<Parser<Token, Token>> CONTINUE;
-        
+
         static const std::shared_ptr<Parser<Token, Token>> END_LINE;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeDefinition>>> VARIABLE_DEFINITION;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeDeclaration>>> VARIABLE_DECLARATION;
@@ -517,7 +561,7 @@ namespace coy {
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeFunctionParameter>>> FUNCTION_PARAMETER;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeFunction>>> FUNCTION;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeFunctionCall>>> FUNCTION_CALL;
-        
+
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeProgram>>> PROGRAM;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> PARSER;
         static const int initializer;

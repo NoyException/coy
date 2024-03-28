@@ -14,7 +14,7 @@ int main(int argc, char *argv[]) {
     //词法分析
     Lexer lexer(content);
     auto tokens = lexer.tokenize();
-    auto it = std::find_if(tokens.begin(), tokens.end(), [](const Token& token){
+    auto it = std::find_if(tokens.begin(), tokens.end(), [](const Token &token) {
         return token.type == TYPE_UNKNOWN;
     });
     if (it != tokens.end()) {
@@ -25,10 +25,14 @@ int main(int argc, char *argv[]) {
     //语法分析
     auto parser = CoyParsers::PARSER;
     auto result = parser->parse(input);
-    if (result.isSuccess()){
-        std::cout<<result.data()->toString();
+    if (result.isSuccess()) {
+        std::cout << result.data()->toString();
         return 0;
     }
-    std::cout<<result.message();
-    return 2;
+    int i = 0;
+    for (const auto &item: tokens) {
+        std::cout << i++ << ":" << item.value << " ";
+    }
+    std::cout << std::endl;
+    std::cout << result.message();
 }
