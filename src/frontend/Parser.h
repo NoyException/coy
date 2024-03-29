@@ -86,7 +86,7 @@ namespace coy {
             }
             return str;
         }
-        
+
         [[nodiscard]] inline std::string message() const {
             //寻找position最大的错误
             auto it = _message.begin();
@@ -251,12 +251,12 @@ namespace coy {
          * @param o 
          * @return 
          */
-        [[nodiscard]] std::shared_ptr<Parser> orElse(const O& o){
-            return orElse(std::make_shared<Parser>([o](Input<I> input){
+        [[nodiscard]] std::shared_ptr<Parser> orElse(const O &o) {
+            return orElse(std::make_shared<Parser>([o](Input<I> input) {
                 return Output<I, O>::success(o, input);
             }));
         }
-        
+
         /**
          * 返回一个功能如下的Parser：先尝试解析当前Parser，如果成功则尝试解析other。
          * 第二个Parser的解析结果会被返回。
@@ -288,7 +288,7 @@ namespace coy {
                 return Output<I, O2>::success(o, input);
             }));
         }
-        
+
         /**
          * 返回一个功能如下的Parser：将当前Parser解析出的结果映射为另一种类型。
          * @param other 
@@ -474,7 +474,7 @@ namespace coy {
                 return Output<I, O>::success(input.current(), input + 1);
             });
         }
-        
+
         /**
          * 返回一个功能如下的Parser：如果输入满足predicate，则解析trueParser，否则解析falseParser。
          * @tparam I 
@@ -498,7 +498,7 @@ namespace coy {
                 }
             });
         }
-        
+
         /**
          * 返回一个功能如下的Parser：如果输入满足predicate，则解析trueParser，否则解析falseParser。
          * @tparam I 
@@ -578,6 +578,76 @@ namespace coy {
         }
 
         /**
+         * 返回一个功能如下的Parser：在predicate成立的情况下尝试多次解析一个Parser，如果解析失败则直接返回失败的结果。
+         * 当predicate不成立后，返回一个成功的结果，结果为所有解析结果的列表。
+         * 如果atLeastOne为true，则至少要解析一次。
+         * @tparam I 
+         * @tparam O 
+         * @param predicate 
+         * @param parser 
+         * @param atLeastOne 
+         * @return 
+         */
+        template<typename I, typename O>
+        static std::shared_ptr<Parser<I, std::vector<O>>>
+        whileSatisfy(const std::function<bool(const I &)> &predicate, const std::shared_ptr<Parser<I, O>> &parser,
+                     bool atLeastOne = false) {
+            return std::make_shared<Parser<I, std::vector<O>>>(
+                    [predicate, parser, atLeastOne](Input<I> input) {
+                        std::vector<O> results;
+                        Input<I> current = input;
+                        while (predicate(input.current())) {
+                            auto result = parser->parse(current);
+                            if (result.isSuccess()) {
+                                results.push_back(result.data());
+                                current = result.next();
+                            } else {
+                                return Output<I, std::vector<O>>::failure(result);
+                            }
+                        }
+                        if (results.empty() && atLeastOne)
+                            return Output<I, std::vector<O>>::failure(input.getIndex(), "At least one expected");
+                        return Output<I, std::vector<O>>::success(results, current);
+                    });
+        }
+
+        /**
+         * 返回一个功能如下的Parser：在predicate成立的情况下尝试多次解析一个Parser，如果解析失败则直接返回失败的结果。
+         * 当predicate不成立后，返回一个成功的结果，结果为所有解析结果的列表。
+         * 如果atLeastOne为true，则至少要解析一次。
+         * @tparam I 
+         * @tparam O 
+         * @param predicate 
+         * @param parser 
+         * @param atLeastOne 
+         * @return 
+         */
+        template<typename I, typename O, typename O2>
+        static std::shared_ptr<Parser<I, std::vector<O>>>
+        whileSatisfy(const std::shared_ptr<Parser<I, O2>> &predicate, const std::shared_ptr<Parser<I, O>> &parser,
+                     bool atLeastOne = false) {
+            return std::make_shared<Parser<I, std::vector<O>>>(
+                    [predicate, parser, atLeastOne](Input<I> input) {
+                        std::vector<O> results;
+                        auto condition = predicate->parse(input);
+                        std::optional<Output<I, O>> result = std::nullopt;
+                        while (condition.isSuccess()) {
+                            result = parser->parse(condition.next());
+                            if (result->isSuccess()) {
+                                results.push_back(result->data());
+                            } else {
+                                return Output<I, std::vector<O>>::failure(*result);
+                            }
+                            condition = predicate->parse(result->next());
+                        }
+                        if (results.empty() && atLeastOne)
+                            return Output<I, std::vector<O>>::failure(input.getIndex(), "At least one expected");
+                        return Output<I, std::vector<O>>::success(results,
+                                                                  result.has_value() ? result->next() : input);
+                    });
+        }
+
+        /**
          * 返回一个功能如下的Parser：尝试以separator为分隔符多次解析一个Parser，返回一个成功的结果，
          * 结果为所有parser的解析结果的列表。
          * @tparam I 
@@ -626,7 +696,8 @@ namespace coy {
                                 current = result.next();
                             } else {
                                 if (results.empty() && atLeastOne) {
-                                    return Output<I, std::vector<O>>::failure(input.getIndex(), "At least one expected")
+                                    return Output<I, std::vector<O>>::failure(input.getIndex(),
+                                                                              "At least one expected")
                                            + Output<I, std::vector<O>>::failure(result);
                                 } else {
                                     auto endResult = end->parse(current);
@@ -649,12 +720,13 @@ namespace coy {
                 return seperatedEndBy(parser, separator, end, true)
                         ->orElse(end->then(pure<I, std::vector<O>>({})));
             return parser->template bind<std::vector<O>>([parser, separator, end](const O &first) {
-                return endBy(separator->then(parser), end)->template map<std::vector<O>>([first](const std::vector<O> &rest) {
-                    std::vector<O> results;
-                    results.push_back(first);
-                    results.insert(results.end(), rest.begin(), rest.end());
-                    return results;
-                });
+                return endBy(separator->then(parser), end)->template map<std::vector<O>>(
+                        [first](const std::vector<O> &rest) {
+                            std::vector<O> results;
+                            results.push_back(first);
+                            results.insert(results.end(), rest.begin(), rest.end());
+                            return results;
+                        });
             });
         }
 
