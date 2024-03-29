@@ -396,7 +396,7 @@ namespace coy {
                 if (result.isSuccess()) {
                     return result;
                 } else {
-                    return Output<I, O>::failure(result.getIndex(), label);
+                    return result + Output<I, O>::failure(input.getIndex(), label);
                 }
             });
         }

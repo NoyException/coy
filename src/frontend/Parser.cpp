@@ -90,8 +90,8 @@ namespace coy {
     std::shared_ptr<Parser<Token, Token>> generateUnaryOperator(const std::string &op) {
         return Parsers::satisfy<Token>([op](const Token &token) {
             return token.type == TYPE_OPERATOR && token.value == op;
-        }, [](const Token &token) {
-            return "unary operator '" + token.value + "' expected but got '" + token.value + "'";
+        }, [op](const Token &token) {
+            return "unary operator '" + op + "' expected but got '" + token.value + "'";
         });
     }
 
@@ -169,7 +169,7 @@ namespace coy {
 
     //expr = or_expr
     const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> CoyParsers::EXPRESSION =
-            OR_EXPRESSION;
+            OR_EXPRESSION->label("expression expected");
 
     //round_bracket_expr = '(' expr ')'
     const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> CoyParsers::ROUND_BRACKET_EXPRESSION =
@@ -182,10 +182,11 @@ namespace coy {
     //left_value = identifier ('[' expr ']')*
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeLeftValue>>> CoyParsers::LEFT_VALUE =
             IDENTIFIER->bind<std::shared_ptr<NodeLeftValue>>([](const std::shared_ptr<NodeIdentifier> &identifier) {
-                return Parsers::many(SQUARE_BRACKET_EXPRESSION)->map<std::shared_ptr<NodeLeftValue>>(
-                        [identifier](const std::vector<std::shared_ptr<Node>> &indexes) {
-                            return std::make_shared<NodeLeftValue>(identifier, indexes);
-                        }
+                return Parsers::whileSatisfy(LEFT_SQUARE_BRACKET, EXPRESSION->skip(RIGHT_SQUARE_BRACKET))
+                        ->map<std::shared_ptr<NodeLeftValue>>(
+                                [identifier](const std::vector<std::shared_ptr<Node>> &indexes) {
+                                    return std::make_shared<NodeLeftValue>(identifier, indexes);
+                                }
                 );
             });
 
