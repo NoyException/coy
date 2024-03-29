@@ -234,7 +234,7 @@ namespace coy {
                                 ->bind<std::shared_ptr<NodeDefinition>>(
                                         [identifier](const std::vector<int> &dimensions) {
                                             return ASSIGN->then(EXPRESSION)
-                                                    ->orElse(Parsers::pure<Token, std::shared_ptr<Node>>(nullptr))
+                                                    ->orElse(nullptr)
                                                     ->map<std::shared_ptr<NodeDefinition>>([identifier, dimensions](
                                                             const std::shared_ptr<Node> &expr) {
                                                         return std::make_shared<NodeDefinition>(identifier, expr,
@@ -248,21 +248,11 @@ namespace coy {
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeDeclaration>>> CoyParsers::VARIABLE_DECLARATION =
             DATA_TYPE->bind<std::shared_ptr<NodeDeclaration>>(
                     [](const std::shared_ptr<NodeDataType> &type) {
-                        return VARIABLE_DEFINITION->bind<std::shared_ptr<NodeDeclaration>>(
-                                [type](const std::shared_ptr<NodeDefinition> &node) {
-                                    return Parsers::many(COMMA->then(VARIABLE_DEFINITION)
-                                    )->map<std::shared_ptr<NodeDeclaration>>([type, node](
-                                            const std::vector<std::shared_ptr<NodeDefinition>> &nodes) {
-                                        std::vector<std::shared_ptr<NodeDefinition>> definitions;
-                                        definitions.reserve(nodes.size() + 1);
-                                        definitions.push_back(node);
-                                        for (const auto &item: nodes) {
-                                            definitions.push_back(item);
-                                        }
-                                        return std::make_shared<NodeDeclaration>(type, definitions);
-                                    })->skip(END_LINE);
-                                }
-                        );
+                        return Parsers::seperatedEndBy(VARIABLE_DEFINITION, COMMA, END_LINE)
+                                ->map<std::shared_ptr<NodeDeclaration>>([type](
+                                        const std::vector<std::shared_ptr<NodeDefinition>> &definitions) {
+                                    return std::make_shared<NodeDeclaration>(type, definitions);
+                                });
                     }
             );
 
@@ -358,33 +348,32 @@ namespace coy {
                     [](const std::shared_ptr<NodeDataType> &type) {
                         return IDENTIFIER->bind<std::shared_ptr<NodeFunctionParameter>>(
                                 [type](const std::shared_ptr<NodeIdentifier> &identifier) {
-                                    return LEFT_SQUARE_BRACKET
-                                            ->then(RIGHT_SQUARE_BRACKET)
-                                            ->then(Parsers::many(
-                                                    LEFT_SQUARE_BRACKET->then(INTEGER)->skip(RIGHT_SQUARE_BRACKET)))
-                                            ->map<std::vector<int>>(
-                                                    [](const std::vector<std::shared_ptr<NodeInteger>> &nodes) {
-                                                        std::vector<int> result;
-                                                        result.reserve(nodes.size());
-                                                        for (const auto &node: nodes) {
-                                                            result.push_back(node->getNumber());
-                                                        }
-                                                        return result;
-                                                    }
-                                            )
-                                            ->map<std::shared_ptr<NodeFunctionParameter>>(
-                                                    [type, identifier](
-                                                            const std::vector<int> &args) {
-                                                        auto node = std::make_shared<NodeFunctionParameter>(
-                                                                type, identifier, true, args);
-                                                        return node;
-                                                    })
-                                            ->orElse(
-                                                    Parsers::pure<Token, std::shared_ptr<NodeFunctionParameter>>(
-                                                            std::make_shared<NodeFunctionParameter>(type, identifier,
-                                                                                                    false)
+                                    return Parsers::ifElse(
+                                            LEFT_SQUARE_BRACKET,
+                                            RIGHT_SQUARE_BRACKET
+                                                    ->then(Parsers::many(
+                                                            LEFT_SQUARE_BRACKET->then(INTEGER)->skip(RIGHT_SQUARE_BRACKET)))
+                                                    ->map<std::vector<int>>(
+                                                            [](const std::vector<std::shared_ptr<NodeInteger>> &nodes) {
+                                                                std::vector<int> result;
+                                                                result.reserve(nodes.size());
+                                                                for (const auto &node: nodes) {
+                                                                    result.push_back(node->getNumber());
+                                                                }
+                                                                return result;
+                                                            }
                                                     )
-                                            );
+                                                    ->map<std::shared_ptr<NodeFunctionParameter>>(
+                                                            [type, identifier](
+                                                                    const std::vector<int> &args) {
+                                                                return std::make_shared<NodeFunctionParameter>(
+                                                                        type, identifier, true, args);
+                                                            }
+                                                    ),
+                                            Parsers::pure<Token, std::shared_ptr<NodeFunctionParameter>>(
+                                                    std::make_shared<NodeFunctionParameter>(type, identifier, false)
+                                            )
+                                    );
                                 }
                         );
                     }
@@ -397,29 +386,7 @@ namespace coy {
                         return IDENTIFIER->bind<std::shared_ptr<NodeFunction>>(
                                 [type](const std::shared_ptr<NodeIdentifier> &identifier) {
                                     return LEFT_ROUND_BRACKET
-                                            ->then(FUNCTION_PARAMETER->bind<std::vector<std::shared_ptr<NodeFunctionParameter>>>(
-                                                            [type, identifier](
-                                                                    const std::shared_ptr<NodeFunctionParameter> &param) {
-                                                                return Parsers::many(
-                                                                        COMMA->then(FUNCTION_PARAMETER))
-                                                                        ->map<std::vector<std::shared_ptr<NodeFunctionParameter>>>(
-                                                                                [param](const std::vector<std::shared_ptr<NodeFunctionParameter>> &nodes) {
-                                                                                    std::vector<std::shared_ptr<NodeFunctionParameter>> result;
-                                                                                    result.reserve(nodes.size() + 1);
-                                                                                    result.push_back(param);
-                                                                                    for (const auto &node: nodes) {
-                                                                                        result.push_back(node);
-                                                                                    }
-                                                                                    return result;
-                                                                                }
-                                                                        );
-                                                            }
-                                                    )
-                                                           ->orElse(
-                                                                   Parsers::pure<Token, std::vector<std::shared_ptr<NodeFunctionParameter>>>(
-                                                                           std::vector<std::shared_ptr<NodeFunctionParameter>>()))
-                                            )
-                                            ->skip(RIGHT_ROUND_BRACKET)
+                                            ->then(Parsers::seperatedEndBy(FUNCTION_PARAMETER, COMMA, RIGHT_ROUND_BRACKET))
                                             ->bind<std::shared_ptr<NodeFunction>>(
                                                     [type, identifier](
                                                             const std::vector<std::shared_ptr<NodeFunctionParameter>> &params) {

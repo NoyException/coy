@@ -26,13 +26,6 @@ int main(int argc, char *argv[]) {
     //词法分析
     Lexer lexer(content);
     auto tokens = lexer.tokenize();
-    auto it = std::find_if(tokens.begin(), tokens.end(), [](const Token &token) {
-        return token.type == TYPE_UNKNOWN;
-    });
-    if (it != tokens.end()) {
-        std::cerr << "Unknown token: " << it->value << std::endl;
-        return 1;
-    }
     Input<Token> input(std::make_shared<std::vector<Token>>(tokens));
     //语法分析
     auto parser = CoyParsers::PARSER;

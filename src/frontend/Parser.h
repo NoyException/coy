@@ -10,6 +10,7 @@
 #include <optional>
 #include <utility>
 #include <set>
+#include <variant>
 
 #include "Token.h"
 #include "Node.h"
@@ -53,89 +54,138 @@ namespace coy {
         }
     };
 
-//    template<typename I>
-//    class Message{
-//    public:
-//        virtual ~Message() = default;
-//        virtual int getPosition() = 0;
-//        virtual I* getSymbol() = 0;
-//        virtual std::string getMessage() = 0;
-//        std::shared_ptr<Message<I>> merge(std::shared_ptr<Message<I>> another);
-//    };
-//
-//    template<typename I>
-//    class MessageImpl : public Message<I>{
-//    private:
-//        I* _symbol;
-//        int _position = 0;
-//        std::string _message;
-//    public:
-//        MessageImpl(I* symbol, int position, std::string message)
-//        : _symbol(symbol), _position(position), _message(std::move(message)){}
-//    };
-//
-//    template<typename I>
-//    std::shared_ptr<Message<I>> Message<I>::merge(std::shared_ptr<Message<I>> another) {
-//        return std::make_shared<MessageImpl<I>>(this->getSymbol(), this->getPosition(),);
-//    }
+    class Failure {
+    private:
+        std::unordered_multimap<int, std::function<std::string()>> _message{};
+    public:
+
+        explicit Failure(const std::unordered_multimap<int, std::function<std::string()>> &message)
+                : _message(message) {}
+
+        explicit Failure(int position, const std::function<std::string()> &message) {
+            _message.insert({position, message});
+        }
+
+        Failure(const Failure &a, const Failure &b) {
+            for (const auto &error: a._message) {
+                _message.insert(error);
+            }
+            for (const auto &error: b._message) {
+                _message.insert(error);
+            }
+        }
+
+        inline void add(int index, const std::function<std::string()> &message) {
+            _message.insert({index, message});
+        }
+
+        [[nodiscard]] inline std::string allMessage() const {
+            std::string str;
+            for (const auto &error: _message) {
+                str += "At " + std::to_string(error.first) + ": " + error.second() + "\n";
+            }
+            return str;
+        }
+        
+        [[nodiscard]] inline std::string message() const {
+            //寻找position最大的错误
+            auto it = _message.begin();
+            for (auto i = _message.begin(); i != _message.end(); ++i) {
+                if (i->first > it->first) {
+                    it = i;
+                }
+            }
+            return "At " + std::to_string(it->first) + ": " + it->second();
+        }
+    };
+
+    template<typename I, typename O>
+    class Success {
+    private:
+        O _data;
+        Input<I> _next;
+    public:
+        Success(const O &data, Input<I> next) : _data(data), _next(next) {}
+
+        [[nodiscard]] O data() const {
+            return _data;
+        }
+
+        [[nodiscard]] Input<I> next() const {
+            return _next;
+        }
+    };
 
     template<typename I, typename O>
     class Output {
     private:
-        bool _success;
-        std::optional<O> _data;
-        std::function<std::string()> _message;
-        Input<I> _next;
+        std::variant<Success<I, O>, Failure> _result;
     public:
-        Output(bool success, const std::optional<O> &data, std::function<std::string()> message, Input<I> next)
-                : _success(success), _data(data), _message(std::move(message)), _next(next) {}
+        explicit Output(const Success<I, O> &result) : _result(result) {}
+
+        Output(const O &data, Input<I> next) : _result(Success<I, O>(data, next)) {}
+
+        explicit Output(const Failure &result) : _result(result) {}
+
+        Output(int position, const std::function<std::string()> &message) : _result(Failure(position, message)) {}
 
         static Output success(const O &data, Input<I> next) {
-            return Output(true, data, [] { return ""; }, next);
+            return Output(data, next);
         }
 
-        static Output fail(std::string message, Input<I> position) {
-            return Output(false, std::nullopt, [message] { return message; }, position);
+        static Output failure(int position, const std::function<std::string()> &message) {
+            return Output(position, message);
         }
 
-        static Output fail(std::function<std::string()> message, Input<I> position) {
-            return Output(false, std::nullopt, message, position);
+        static Output failure(int position, const std::string &message) {
+            return Output(position, [message]() { return message; });
         }
 
-        Output merge(const Output<I, O> &another) {
+        template<typename O2>
+        static Output<I, O> failure(const Output<I, O2> &output) {
+            return Output<I, O>(output.getFailure());
+        }
+
+        [[nodiscard]] bool isSuccess() const {
+            return std::holds_alternative<Success<I, O>>(_result);
+        }
+
+        [[nodiscard]] bool isFailure() const {
+            return std::holds_alternative<Failure>(_result);
+        }
+
+        [[nodiscard]] Success<I, O> getSuccess() const {
+            return std::get<Success<I, O>>(_result);
+        }
+
+        [[nodiscard]] Failure getFailure() const {
+            return std::get<Failure>(_result);
+        }
+
+        [[nodiscard]] std::string message() const {
+            return std::get<Failure>(_result).message();
+        }
+
+        [[nodiscard]] O data() const {
+            return std::get<Success<I, O>>(_result).data();
+        }
+
+        [[nodiscard]] Input<I> next() const {
+            return std::get<Success<I, O>>(_result).next();
+        }
+
+        Output merge(const Output &another) {
             if (this->isSuccess()) {
                 return *this;
             }
             if (another.isSuccess()) {
                 return another;
             }
-            auto message = this->_message;
-            auto anotherMessage = another._message;
-            return Output::fail([message, anotherMessage]() { return message() + "\n" + anotherMessage(); }, _next);
+            return Output(Failure(getFailure(), another.getFailure()));
         }
 
-        Output operator+(const Output<I, O> &another) {
+        Output operator+(const Output &another) {
             return merge(another);
-        }
-
-        [[nodiscard]] bool isSuccess() const {
-            return _success;
-        }
-
-        [[nodiscard]] O data() const {
-            return _data.value();
-        }
-
-        [[nodiscard]] std::string message() const {
-            return _message();
-        }
-
-        [[nodiscard]] std::function<std::string()> messageSupplier() const {
-            return _message;
-        }
-
-        [[nodiscard]] Input<I> next() const {
-            return _next;
         }
     };
 
@@ -160,15 +210,21 @@ namespace coy {
             _parseFunction = parseFunction;
         }
 
+        /**
+         * 返回一个功能如下的Parser：将当前Parser解析出的结果强制转换为另一个类型
+         * @tparam O2 
+         * @return 
+         * @see Parser::map
+         */
         template<typename O2>
         std::shared_ptr<Parser<I, O2>> as() {
             auto self = this->shared_from_this();
-            return std::make_shared<Parser<I, O2>>([self](Input<I> input) -> Output<I, O2> {
+            return std::make_shared<Parser<I, O2>>([self](Input<I> input) {
                 auto result = self->parse(input);
                 if (result.isSuccess()) {
                     return Output<I, O2>::success(O2(result.data()), result.next());
                 } else {
-                    return Output<I, O2>::fail(result.messageSupplier(), result.next());
+                    return Output<I, O2>::failure(result);
                 }
             });
         }
@@ -180,7 +236,7 @@ namespace coy {
          */
         [[nodiscard]] std::shared_ptr<Parser> orElse(const std::shared_ptr<Parser> &other) const {
             auto self = this->shared_from_this();
-            return std::make_shared<Parser>([self, other](Input<I> input) -> Output<I, O> {
+            return std::make_shared<Parser>([self, other](Input<I> input) {
                 auto result = self->parse(input);
                 if (result.isSuccess()) {
                     return result;
@@ -190,6 +246,17 @@ namespace coy {
             });
         }
 
+        /**
+         * 返回一个功能如下的Parser：先尝试解析当前Parser，如果失败则返回o。
+         * @param o 
+         * @return 
+         */
+        [[nodiscard]] std::shared_ptr<Parser> orElse(const O& o){
+            return orElse(std::make_shared<Parser>([o](Input<I> input){
+                return Output<I, O>::success(o, input);
+            }));
+        }
+        
         /**
          * 返回一个功能如下的Parser：先尝试解析当前Parser，如果成功则尝试解析other。
          * 第二个Parser的解析结果会被返回。
@@ -204,11 +271,24 @@ namespace coy {
                 if (result.isSuccess()) {
                     return other->parse(result.next());
                 } else {
-                    return Output<I, O2>::fail(result.messageSupplier(), result.next());
+                    return Output<I, O2>::failure(result);
                 }
             });
         }
 
+        /**
+         * 返回一个功能如下的Parser：先尝试解析当前Parser，如果成功则返回o。
+         * @tparam O2 
+         * @param o 
+         * @return 
+         */
+        template<typename O2>
+        [[nodiscard]] std::shared_ptr<Parser<I, O2>> then(const O2 &o) const {
+            return then(std::make_shared<Parser<I, O2>>([o](Input<I> input) {
+                return Output<I, O2>::success(o, input);
+            }));
+        }
+        
         /**
          * 返回一个功能如下的Parser：将当前Parser解析出的结果映射为另一种类型。
          * @param other 
@@ -223,7 +303,7 @@ namespace coy {
                 if (result.isSuccess()) {
                     return Output<I, O2>::success(mapper(result.data()), result.next());
                 } else {
-                    return Output<I, O2>::fail(result.messageSupplier(), result.next());
+                    return Output<I, O2>::failure(result);
                 }
             });
         }
@@ -242,7 +322,7 @@ namespace coy {
                 if (result.isSuccess()) {
                     return binder(result.data())->parse(result.next());
                 } else {
-                    return Output<I, O2>::fail(result.messageSupplier(), input);
+                    return Output<I, O2>::failure(result);
                 }
             });
         }
@@ -263,10 +343,10 @@ namespace coy {
                     if (next.isSuccess()) {
                         return Output<I, O>::success(result.data(), next.next());
                     } else {
-                        return Output<I, O>::fail(next.messageSupplier(), result.next());
+                        return Output<I, O>::failure(next);
                     }
                 } else {
-                    return Output<I, O>::fail(result.messageSupplier(), result.next());
+                    return Output<I, O>::failure(result);
                 }
             });
         }
@@ -304,6 +384,11 @@ namespace coy {
             });
         }
 
+        /**
+         * 在解析失败时，将指定信息添加到错误信息中。
+         * @param label 
+         * @return 
+         */
         std::shared_ptr<Parser> label(const std::string &label) {
             auto self = this->shared_from_this();
             return std::make_shared<Parser<I, O>>([self, label](Input<I> input) -> Output<I, O> {
@@ -311,9 +396,7 @@ namespace coy {
                 if (result.isSuccess()) {
                     return result;
                 } else {
-                    return Output<I, O>::fail([result, label]() {
-                        return result.message() + "\n" + label;
-                    }, result.next());
+                    return Output<I, O>::failure(result.getIndex(), label);
                 }
             });
         }
@@ -330,7 +413,7 @@ namespace coy {
         template<typename I, typename O>
         static std::shared_ptr<Parser<I, O>> lazy() {
             return std::make_shared<Parser<I, O>>([](Input<I> input) -> Output<I, O> {
-                return Output<I, O>::fail("Not implemented", input);
+                return Output<I, O>::failure(input.getIndex(), "Not implemented");
             });
         }
 
@@ -346,7 +429,7 @@ namespace coy {
                 if (input.end()) {
                     return Output<I, O>::success(nullptr, input);
                 } else {
-                    return Output<I, O>::fail("End expected", input);
+                    return Output<I, O>::failure(input.getIndex(), "End expected");
                 }
             });
         }
@@ -374,8 +457,8 @@ namespace coy {
          */
         template<typename I, typename O>
         static std::shared_ptr<Parser<I, O>> fail(const std::string &message) {
-            return std::make_shared<Parser<I, O>>([message](Input<I> input) -> Output<I, O> {
-                return Output<I, O>::fail(message, input);
+            return std::make_shared<Parser<I, O>>([message](Input<I> input) {
+                return Output<I, O>::failure(input.getIndex(), message);
             });
         }
 
@@ -391,6 +474,52 @@ namespace coy {
                 return Output<I, O>::success(input.current(), input + 1);
             });
         }
+        
+        /**
+         * 返回一个功能如下的Parser：如果输入满足predicate，则解析trueParser，否则解析falseParser。
+         * @tparam I 
+         * @tparam O 
+         * @tparam O2 
+         * @param predicate 
+         * @param trueParser 
+         * @param falseParser 
+         * @return 
+         */
+        template<typename I, typename O, typename O2>
+        static std::shared_ptr<Parser<I, O>> ifElse(const std::shared_ptr<Parser<I, O2>> &predicate,
+                                                    const std::shared_ptr<Parser<I, O>> &trueParser,
+                                                    const std::shared_ptr<Parser<I, O>> &falseParser) {
+            return std::make_shared<Parser<I, O>>([predicate, trueParser, falseParser](Input<I> input) {
+                auto result = predicate->parse(input);
+                if (result.isSuccess()) {
+                    return trueParser->parse(result.next());
+                } else {
+                    return falseParser->parse(input);
+                }
+            });
+        }
+        
+        /**
+         * 返回一个功能如下的Parser：如果输入满足predicate，则解析trueParser，否则解析falseParser。
+         * @tparam I 
+         * @tparam O 
+         * @param predicate 
+         * @param trueParser 
+         * @param falseParser 
+         * @return 
+         */
+        template<typename I, typename O>
+        static std::shared_ptr<Parser<I, O>> ifElse(const std::function<bool(const I &)> &predicate,
+                                                    const std::shared_ptr<Parser<I, O>> &trueParser,
+                                                    const std::shared_ptr<Parser<I, O>> &falseParser) {
+            return std::make_shared<Parser<I, O>>([predicate, trueParser, falseParser](Input<I> input) {
+                if (predicate(input.current())) {
+                    return trueParser->parse(input);
+                } else {
+                    return falseParser->parse(input);
+                }
+            });
+        }
 
         /**
          * 返回一个功能如下的Parser：按照顺序尝试解析多个Parser，返回第一个成功的结果。
@@ -403,7 +532,7 @@ namespace coy {
         static std::shared_ptr<Parser<I, O>> any(std::initializer_list<std::shared_ptr<Parser<I, O>>> parsers) {
             std::list<std::shared_ptr<Parser<I, O>>> list(parsers);
             return std::make_shared<Parser<I, O>>([list](Input<I> input) -> Output<I, O> {
-                Output<I, O> failed = Output<I, O>::fail("No parser matched", input);
+                Output<I, O> failed = Output<I, O>::failure(input.getIndex(), "No parser matched");
                 for (const auto &parser: list) {
                     auto result = parser->parse(input);
                     if (result.isSuccess()) {
@@ -428,7 +557,7 @@ namespace coy {
         static std::shared_ptr<Parser<I, std::vector<O>>>
         many(const std::shared_ptr<Parser<I, O>> &parser, bool atLeastOne = false) {
             return std::make_shared<Parser<I, std::vector<O>>>(
-                    [parser, atLeastOne](Input<I> input) -> Output<I, std::vector<O>> {
+                    [parser, atLeastOne](Input<I> input) {
                         std::vector<O> results;
                         Input<I> current = input;
                         while (true) {
@@ -438,14 +567,39 @@ namespace coy {
                                 current = result.next();
                             } else {
                                 if (results.empty() && atLeastOne) {
-                                    return Output<I, std::vector<O>>::fail("At least one expected", input)
-                                           + Output<I, std::vector<O>>::fail(result.messageSupplier(), current);
+                                    return Output<I, std::vector<O>>::failure(input.getIndex(), "At least one expected")
+                                           + Output<I, std::vector<O>>::failure(result);
                                 } else {
                                     return Output<I, std::vector<O>>::success(results, current);
                                 }
                             }
                         }
                     });
+        }
+
+        /**
+         * 返回一个功能如下的Parser：尝试以separator为分隔符多次解析一个Parser，返回一个成功的结果，
+         * 结果为所有parser的解析结果的列表。
+         * @tparam I 
+         * @tparam O 
+         * @param parser 
+         * @param separator 
+         * @return 
+         */
+        template<typename I, typename O, typename O2>
+        static std::shared_ptr<Parser<I, std::vector<O>>>
+        seperatedBy(const std::shared_ptr<Parser<I, O>> &parser, const std::shared_ptr<Parser<I, O2>> &separator,
+                    bool atLeastOne = false) {
+            if (!atLeastOne)
+                return seperatedBy(parser, separator, true)->orElse(pure<std::vector<O>>({}));
+            return parser->bind([parser, separator](const O &first) {
+                return parser->many(separator->then(parser)).map([first](const std::vector<O> &rest) {
+                    std::vector<O> results;
+                    results.push_back(first);
+                    results.insert(results.end(), rest.begin(), rest.end());
+                    return results;
+                });
+            });
         }
 
         /**
@@ -459,7 +613,8 @@ namespace coy {
          */
         template<typename I, typename O, typename O2>
         static std::shared_ptr<Parser<I, std::vector<O>>>
-        endBy(const std::shared_ptr<Parser<I, O>> &parser, const std::shared_ptr<Parser<I, O2>> &end, bool atLeastOne = false){
+        endBy(const std::shared_ptr<Parser<I, O>> &parser, const std::shared_ptr<Parser<I, O2>> &end,
+              bool atLeastOne = false) {
             return std::make_shared<Parser<I, std::vector<O>>>(
                     [parser, atLeastOne, end](Input<I> input) {
                         std::vector<O> results;
@@ -471,21 +626,38 @@ namespace coy {
                                 current = result.next();
                             } else {
                                 if (results.empty() && atLeastOne) {
-                                    return Output<I, std::vector<O>>::fail("At least one expected", input)
-                                           + Output<I, std::vector<O>>::fail(result.messageSupplier(), current);
+                                    return Output<I, std::vector<O>>::failure(input.getIndex(), "At least one expected")
+                                           + Output<I, std::vector<O>>::failure(result);
                                 } else {
                                     auto endResult = end->parse(current);
-                                    if(endResult.isSuccess()){
+                                    if (endResult.isSuccess()) {
                                         return Output<I, std::vector<O>>::success(results, endResult.next());
                                     } else {
-                                        return Output<I, std::vector<O>>::fail(result.messageSupplier(), input);
+                                        return Output<I, std::vector<O>>::failure(result);
                                     }
                                 }
                             }
                         }
                     });
         }
-        
+
+        template<typename I, typename O, typename O2, typename O3>
+        static std::shared_ptr<Parser<I, std::vector<O>>>
+        seperatedEndBy(const std::shared_ptr<Parser<I, O>> &parser, const std::shared_ptr<Parser<I, O2>> &separator,
+                       const std::shared_ptr<Parser<I, O3>> &end, bool atLeastOne = false) {
+            if (!atLeastOne)
+                return seperatedEndBy(parser, separator, end, true)
+                        ->orElse(end->then(pure<I, std::vector<O>>({})));
+            return parser->template bind<std::vector<O>>([parser, separator, end](const O &first) {
+                return endBy(separator->then(parser), end)->template map<std::vector<O>>([first](const std::vector<O> &rest) {
+                    std::vector<O> results;
+                    results.push_back(first);
+                    results.insert(results.end(), rest.begin(), rest.end());
+                    return results;
+                });
+            });
+        }
+
         /**
          * 返回一个功能如下的Parser：依次解析多个Parser，返回一个成功的结果，结果为所有解析结果的列表。
          * @tparam I 
@@ -521,16 +693,17 @@ namespace coy {
          */
         template<typename I>
         static std::shared_ptr<Parser<I, I>> satisfy(const std::function<bool(const I &)> &predicate,
-                                                     const std::function<std::string(const I &)> &message = [](const I &i) {
+                                                     const std::function<std::string(const I &)> &message = [](
+                                                             const I &i) {
                                                          return "Unexpected symbol";
                                                      }) {
             return std::make_shared<Parser<I, I>>([predicate, message](Input<I> input) -> Output<I, I> {
                 if (input.end())
-                    return Output<I, I>::fail("End of input", input);
+                    return Output<I, I>::failure(input.getIndex(), "End of input");
                 if (predicate(input.current())) {
                     return Output<I, I>::success(input.current(), input + 1);
                 } else {
-                    return Output<I, I>::fail("At " + std::to_string(input.getIndex()) + ": " + message(input.current()), input);
+                    return Output<I, I>::failure(input.getIndex(), message(input.current()));
                 }
             });
         }
