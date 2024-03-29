@@ -37,9 +37,10 @@ namespace coy {
 
     class Lexer {
     private:
-        std::string _content;
+        const std::string _content;
+        size_t _index = 0;
         std::list<std::pair<std::regex, int>> _patterns;
-        void trim();
+        void skipSpace();
     public:
         explicit Lexer(std::string content, std::list<std::pair<std::regex, int>> patterns = DEFAULT_PATTERNS);
 

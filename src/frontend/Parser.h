@@ -87,7 +87,7 @@ namespace coy {
             return str;
         }
 
-        [[nodiscard]] inline std::string message() const {
+        [[nodiscard]] inline std::pair<int, std::string> message() const {
             //寻找position最大的错误
             auto it = _message.begin();
             for (auto i = _message.begin(); i != _message.end(); ++i) {
@@ -95,7 +95,7 @@ namespace coy {
                     it = i;
                 }
             }
-            return "At " + std::to_string(it->first) + ": " + it->second();
+            return std::make_pair(it->first, it->second());
         }
     };
 
@@ -163,7 +163,7 @@ namespace coy {
         }
 
         [[nodiscard]] std::string message() const {
-            return std::get<Failure>(_result).message();
+            return std::get<Failure>(_result).message().second;
         }
 
         [[nodiscard]] O data() const {

@@ -13,22 +13,22 @@ namespace coy {
     }
 
     Token Lexer::nextToken() {
-        trim();
-        if (_content.empty()) {
-            return {TYPE_EOF, ""};
+        skipSpace();
+        if (_index >= _content.size()) {
+            return {TYPE_EOF, "", _index};
         }
         for (const auto & pair : _patterns) {
             std::smatch match;
-            if (std::regex_search(_content, match, pair.first, std::regex_constants::match_continuous)) {
-                //将匹配的部分从_content中删除
-                size_t len = match[0].length();
+            std::string toMatch = _content.substr(_index);
+            if (std::regex_search(toMatch, match, pair.first, std::regex_constants::match_continuous)) {
                 std::string token = match[0];
-                _content = _content.substr(len);
-                return {pair.second, token.substr(0, len)};
+                size_t len = token.length();
+                _index += len;
+                return {pair.second, token, _index-len};
             }
         }
-        _content = _content.substr(1);
-        return {TYPE_UNKNOWN, _content.substr(0, 1)};
+        _index++;
+        return {TYPE_UNKNOWN, _content.substr(_index-1, _index), _index-1};
     }
 
     std::vector<Token> Lexer::tokenize(const std::function<bool(const Token &)>& filter) {
@@ -46,16 +46,15 @@ namespace coy {
         return tokens;
     }
 
-    void Lexer::trim() {
+    void Lexer::skipSpace() {
         const std::string WHITESPACE = " \n\r\t\f\v";
-        size_t start = _content.find_first_not_of(WHITESPACE);
+        std::string content = _content.substr(_index);
+        size_t start = content.find_first_not_of(WHITESPACE);
         if (start == std::string::npos) {
-            // _content 全是空格
-            _content.clear();
+            _index = _content.size();
             return;
         }
-        size_t end = _content.find_last_not_of(WHITESPACE);
-        _content = _content.substr(start, end - start + 1);
+        _index += start;
     }
 
 } // coy

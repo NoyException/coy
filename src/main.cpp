@@ -34,11 +34,10 @@ int main(int argc, char *argv[]) {
         std::cout << result.data()->toString();
         return 0;
     }
-    int i = 0;
-    for (const auto &item: tokens) {
-        std::cout << i++ << ":" << item.value << " ";
-    }
     std::cout << std::endl;
-    std::cout << result.message();
+    auto message = result.getFailure().message();
+    std::cout << message.second << std::endl;
+    size_t pos = tokens[message.first].position;
+    std::cout << content.substr(0, pos) << "错误在这里" << content.substr(pos) << std::endl;
     return 2;
 }

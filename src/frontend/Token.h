@@ -26,6 +26,7 @@ namespace coy {
     struct Token {
         int type;
         std::string value;
+        size_t position;
     };
     
 } // coy
