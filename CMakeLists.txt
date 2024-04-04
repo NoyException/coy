@@ -11,7 +11,9 @@ add_executable(coy src/main.cpp
         src/frontend/Node.cpp
         src/frontend/Node.h
         src/frontend/Parser.cpp
-        src/frontend/Parser.h)
+        src/frontend/Parser.h
+        src/frontend/SemanticAnalyzer.cpp
+        src/frontend/SemanticAnalyzer.h)
 
 add_executable(test src/test.cpp
         src/frontend/Lexer.cpp

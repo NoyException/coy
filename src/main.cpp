@@ -3,6 +3,7 @@
 
 #include "frontend/Lexer.h"
 #include "frontend/Parser.h"
+#include "frontend/SemanticAnalyzer.h"
 
 using namespace coy;
 
@@ -29,15 +30,29 @@ int main(int argc, char *argv[]) {
     Input<Token> input(std::make_shared<std::vector<Token>>(tokens));
     //语法分析
     auto parser = CoyParsers::PARSER;
-    auto result = parser->parse(input);
-    if (result.isSuccess()) {
-        std::cout << result.data()->toString();
-        return 0;
+    auto parseResult = parser->parse(input);
+    if (!parseResult.isSuccess()) {
+        std::cout << std::endl;
+        auto message = parseResult.getFailure().message();
+        std::cout << message.second << std::endl;
+        size_t pos = tokens[message.first].position;
+        std::cout << content.substr(0, pos) << "错误在这里" << content.substr(pos) << std::endl;
+        return 2;
     }
-    std::cout << std::endl;
-    auto message = result.getFailure().message();
-    std::cout << message.second << std::endl;
-    size_t pos = tokens[message.first].position;
-    std::cout << content.substr(0, pos) << "错误在这里" << content.substr(pos) << std::endl;
-    return 2;
+    //语义分析
+    SemanticAnalyzer analyzer;
+    analyzer.declare("putint", std::make_shared<FunctionType>(
+            std::make_shared<ScalarType>("void"),
+            std::vector<std::shared_ptr<Type>>{std::make_shared<ScalarType>("int")}));
+    analyzer.declare("getint", std::make_shared<FunctionType>(
+            std::make_shared<ScalarType>("int"),
+            std::vector<std::shared_ptr<Type>>{}));
+    auto analyzeResult = analyzer.analyze(parseResult.data());
+    if (!analyzeResult.isSuccess()) {
+        std::cout << analyzeResult.getMessage() << std::endl;
+        return 3;
+    }
+    std::cout << "Success" << std::endl;
+    std::cout << parseResult.data()->toString() << std::endl;
+    return 0;
 }

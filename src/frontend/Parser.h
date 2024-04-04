@@ -784,13 +784,13 @@ namespace coy {
     class CoyParsers {
     public:
 
-        using BinaryOperator = std::function<std::shared_ptr<Node>(const std::shared_ptr<Node> &,
-                                                                   const std::shared_ptr<Node> &)>;
+        using BinaryOperator = std::function<std::shared_ptr<NodeTyped>(const std::shared_ptr<NodeTyped> &,
+                                                                   const std::shared_ptr<NodeTyped> &)>;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeIdentifier>>> IDENTIFIER;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeDataType>>> DATA_TYPE;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeInteger>>> INTEGER;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeFloat>>> FLOAT;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> NUMBER;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> NUMBER;
         static const std::shared_ptr<Parser<Token, BinaryOperator>> ADD_SUB;
         static const std::shared_ptr<Parser<Token, BinaryOperator>> MUL_DIV_MOD;
         static const std::shared_ptr<Parser<Token, BinaryOperator>> INEQUALITY_OPERATOR;
@@ -809,17 +809,17 @@ namespace coy {
         static const std::shared_ptr<Parser<Token, Token>> RIGHT_SQUARE_BRACKET;
         static const std::shared_ptr<Parser<Token, Token>> LEFT_BRACE;
         static const std::shared_ptr<Parser<Token, Token>> RIGHT_BRACE;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> TERM;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> SIGNED_TERM;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> PRODUCT;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> SUM;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> INEQUALITY;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> EQUALITY;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> AND_EXPRESSION;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> OR_EXPRESSION;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> EXPRESSION;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> ROUND_BRACKET_EXPRESSION;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> SQUARE_BRACKET_EXPRESSION;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> TERM;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> SIGNED_TERM;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> PRODUCT;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> SUM;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> INEQUALITY;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> EQUALITY;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> AND_EXPRESSION;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> OR_EXPRESSION;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> EXPRESSION;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> ROUND_BRACKET_EXPRESSION;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> SQUARE_BRACKET_EXPRESSION;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeLeftValue>>> LEFT_VALUE;
 
         static const std::shared_ptr<Parser<Token, Token>> IF;

@@ -20,9 +20,13 @@ namespace coy {
         return std::string(height * 2, ' ') + "identifier " + _name;
     }
 
+    NodeTyped::NodeTyped(NodeType type) : Node(type) {
+
+    }
+
     NodeLeftValue::NodeLeftValue(const std::shared_ptr<NodeIdentifier> &identifier,
-                                 const std::vector<std::shared_ptr<Node>> &indexes)
-            : Node(NodeType::LEFT_VALUE),
+                                 const std::vector<std::shared_ptr<NodeTyped>> &indexes)
+            : NodeTyped(NodeType::LEFT_VALUE),
               _identifier(identifier), _indexes(indexes) {
 
     }
@@ -35,7 +39,7 @@ namespace coy {
         return str;
     }
 
-    NodeInteger::NodeInteger(int num) : Node(NodeType::INTEGER), _num(num) {
+    NodeInteger::NodeInteger(int num) : NodeTyped(NodeType::INTEGER), _num(num) {
 
     }
 
@@ -43,7 +47,7 @@ namespace coy {
         return std::string(height * 2, ' ') + "int " + std::to_string(_num);
     }
 
-    NodeFloat::NodeFloat(float num) : Node(NodeType::FLOAT), _num(num) {
+    NodeFloat::NodeFloat(float num) : NodeTyped(NodeType::FLOAT), _num(num) {
 
     }
 
@@ -51,7 +55,7 @@ namespace coy {
         return std::string(height * 2, ' ') + "float " + std::to_string(_num);
     }
 
-    NodeDataType::NodeDataType(std::string type) : Node(NodeType::DATA_TYPE), _type(std::move(type)) {
+    NodeDataType::NodeDataType(std::string type) : NodeTyped(NodeType::DATA_TYPE), _type(std::move(type)) {
 
     }
 
@@ -59,17 +63,17 @@ namespace coy {
         return std::string(height * 2, ' ') + "type " + _type;
     }
 
-    NodeUnaryOperator::NodeUnaryOperator(std::string op, const std::shared_ptr<Node> &node)
-            : Node(NodeType::UNARY_OPERATOR),
+    NodeUnaryOperator::NodeUnaryOperator(std::string op, const std::shared_ptr<NodeTyped> &node)
+            : NodeTyped(NodeType::UNARY_OPERATOR),
               _op(std::move(op)), _node(node) {}
 
     std::string NodeUnaryOperator::toString(int height) const {
         return std::string(height * 2, ' ') + "unary op " + _op + "\n" + _node->toString(height + 1);
     }
 
-    NodeBinaryOperator::NodeBinaryOperator(std::string op, const std::shared_ptr<Node> &left,
-                                           const std::shared_ptr<Node> &right)
-            : Node(NodeType::BINARY_OPERATOR),
+    NodeBinaryOperator::NodeBinaryOperator(std::string op, const std::shared_ptr<NodeTyped> &left,
+                                           const std::shared_ptr<NodeTyped> &right)
+            : NodeTyped(NodeType::BINARY_OPERATOR),
               _op(std::move(op)), _left(left),
               _right(right) {
 
@@ -80,18 +84,18 @@ namespace coy {
                _right->toString(height + 1);
     }
 
-    NodeIf::NodeIf(const std::shared_ptr<Node> &condition, const std::shared_ptr<Node> &body,
-                   const std::shared_ptr<Node> &elseStatement) : Node(NodeType::IF), _condition(condition), _body(body),
+    NodeIf::NodeIf(const std::shared_ptr<NodeTyped> &condition, const std::shared_ptr<Node> &then,
+                   const std::shared_ptr<Node> &elseStatement) : Node(NodeType::IF), _condition(condition), _then(then),
                                                                  _else(elseStatement) {
 
     }
 
     std::string NodeIf::toString(int height) const {
         return std::string(height * 2, ' ') + "if\n" + _condition->toString(height + 1) + "\n" +
-               _body->toString(height + 1) + (_else ? "\n" + _else->toString(height + 1) : "");
+               _then->toString(height + 1) + (_else ? "\n" + _else->toString(height + 1) : "");
     }
 
-    NodeWhile::NodeWhile(const std::shared_ptr<Node> &condition, const std::shared_ptr<Node> &body) :
+    NodeWhile::NodeWhile(const std::shared_ptr<NodeTyped> &condition, const std::shared_ptr<Node> &body) :
             Node(NodeType::WHILE), _condition(condition), _body(body) {
 
     }
@@ -117,19 +121,19 @@ namespace coy {
         return std::string(height * 2, ' ') + "continue";
     }
 
-    NodeReturn::NodeReturn(const std::shared_ptr<Node> &statement) : Node(NodeType::RETURN), _statement(statement) {
+    NodeReturn::NodeReturn(const std::shared_ptr<NodeTyped> &expression) : Node(NodeType::RETURN), _expression(expression) {
 
     }
 
     std::string NodeReturn::toString(int height) const {
         std::string str = std::string(height * 2, ' ') + "return";
-        if (_statement)
-            str += "\n" + _statement->toString(height + 1);
+        if (_expression)
+            str += "\n" + _expression->toString(height + 1);
         return str;
     }
 
     NodeDefinition::NodeDefinition(const std::shared_ptr<NodeIdentifier> &identifier,
-                                   const std::shared_ptr<Node> &initialValue,
+                                   const std::shared_ptr<NodeTyped> &initialValue,
                                    const std::vector<int> &dimensions) :
             Node(NodeType::DEFINITION), _identifier(identifier),
             _initialValue(initialValue), _dimensions(dimensions) {
@@ -168,14 +172,14 @@ namespace coy {
         return str;
     }
 
-    NodeAssignment::NodeAssignment(const std::shared_ptr<NodeLeftValue> &left, const std::shared_ptr<Node> &statement) :
-            Node(NodeType::ASSIGNMENT), _left(left), _statement(statement) {
+    NodeAssignment::NodeAssignment(const std::shared_ptr<NodeLeftValue> &left, const std::shared_ptr<NodeTyped> &expression) :
+            Node(NodeType::ASSIGNMENT), _left(left), _expression(expression) {
 
     }
 
     std::string NodeAssignment::toString(int height) const {
         return std::string(height * 2, ' ') + "assignment\n" + _left->toString(height + 1) + "\n" +
-               _statement->toString(height + 1);
+               _expression->toString(height + 1);
     }
 
     NodeBlock::NodeBlock(const std::vector<std::shared_ptr<Node>> &statements)
@@ -233,14 +237,14 @@ namespace coy {
     }
 
     NodeFunctionCall::NodeFunctionCall(const std::shared_ptr<NodeIdentifier> &identifier,
-                                       const std::vector<std::shared_ptr<Node>> &argument) :
-            Node(NodeType::FUNCTION_CALL), _identifier(identifier), _argument(argument) {
+                                       const std::vector<std::shared_ptr<NodeTyped>> &arguments) :
+            NodeTyped(NodeType::FUNCTION_CALL), _identifier(identifier), _arguments(arguments) {
 
     }
 
     std::string NodeFunctionCall::toString(int height) const {
         std::string str = std::string(height * 2, ' ') + "function call " + _identifier->getName();
-        for (const auto &arg: _argument) {
+        for (const auto &arg: _arguments) {
             str += "\n" + arg->toString(height + 1);
         }
         return str;
