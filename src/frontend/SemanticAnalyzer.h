@@ -49,7 +49,7 @@ namespace coy {
             return std::dynamic_pointer_cast<T>(shared_from_this());
         }
         
-        [[nodiscard]] virtual bool isAssignableFrom(const std::shared_ptr<Type> &other){
+        [[nodiscard]] virtual bool isAssignableFrom(const std::shared_ptr<Type> &other) const {
             return *this == *other;
         }
         
@@ -88,7 +88,7 @@ namespace coy {
             return _name == "void" || isNumeric();
         }
         
-        [[nodiscard]] bool isAssignableFrom(const std::shared_ptr<Type> &other) override {
+        [[nodiscard]] bool isAssignableFrom(const std::shared_ptr<Type> &other) const override {
             if (auto scalar = std::dynamic_pointer_cast<ScalarType>(other)) {
                 if (_name == scalar->_name)
                     return true;
@@ -183,6 +183,13 @@ namespace coy {
         explicit PointerType(std::shared_ptr<Type> base) : _base(std::move(base)) {}
 
         [[nodiscard]] std::shared_ptr<Type> getBase() const { return _base; }
+        
+        bool isAssignableFrom(const std::shared_ptr<Type> &other) const override{
+            if (auto pointer = std::dynamic_pointer_cast<ArrayType>(other)) {
+                return *_base == *pointer->getBase();
+            }
+            return Type::isAssignableFrom(other);
+        }
         
         [[nodiscard]] std::shared_ptr<Type> at(int indexes) override {
             if (indexes == 0) {

@@ -346,7 +346,7 @@ namespace coy {
             return AnalyzeResult::failure("Argument count mismatch");
         }
         for (int i = 0; i < args.size(); ++i) {
-            if (*args[i] != *declaredArgs[i]) {
+            if (!declaredArgs[i]->isAssignableFrom(args[i])) {
                 return AnalyzeResult::failure("Argument type mismatch");
             }
         }
