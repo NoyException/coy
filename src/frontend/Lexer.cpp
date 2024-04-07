@@ -15,7 +15,7 @@ namespace coy {
     Token Lexer::nextToken() {
         skipSpace();
         if (_index >= _content.size()) {
-            return {TYPE_EOF, "", _index};
+            return {TYPE_EOF, _index, ""};
         }
         for (const auto & pair : _patterns) {
             std::smatch match;
@@ -24,11 +24,11 @@ namespace coy {
                 std::string token = match[0];
                 size_t len = token.length();
                 _index += len;
-                return {pair.second, token, _index-len};
+                return {pair.second, _index-len, token};
             }
         }
         _index++;
-        return {TYPE_UNKNOWN, _content.substr(_index-1, _index), _index-1};
+        return {TYPE_UNKNOWN, _index-1, _content.substr(_index-1, _index)};
     }
 
     std::vector<Token> Lexer::tokenize(const std::function<bool(const Token &)>& filter) {

@@ -12,7 +12,8 @@ namespace coy {
         return toString(0);
     }
 
-    NodeIdentifier::NodeIdentifier(std::string name) : Node(NodeType::IDENTIFIER), _name(std::move(name)) {
+    NodeIdentifier::NodeIdentifier(const Token &token, std::string name)
+            : Node(NodeType::IDENTIFIER, token), _name(std::move(name)) {
 
     }
 
@@ -20,13 +21,14 @@ namespace coy {
         return std::string(height * 2, ' ') + "identifier " + _name;
     }
 
-    NodeTyped::NodeTyped(NodeType type) : Node(type) {
+    NodeTyped::NodeTyped(NodeType type, const Token &token) : Node(type, token) {
 
     }
 
-    NodeLeftValue::NodeLeftValue(const std::shared_ptr<NodeIdentifier> &identifier,
+    NodeLeftValue::NodeLeftValue(const Token &token,
+                                 const std::shared_ptr<NodeIdentifier> &identifier,
                                  const std::vector<std::shared_ptr<NodeTyped>> &indexes)
-            : NodeTyped(NodeType::LEFT_VALUE),
+            : NodeTyped(NodeType::LEFT_VALUE, token),
               _identifier(identifier), _indexes(indexes) {
 
     }
@@ -39,7 +41,8 @@ namespace coy {
         return str;
     }
 
-    NodeInteger::NodeInteger(int num) : NodeTyped(NodeType::INTEGER), _num(num) {
+    NodeInteger::NodeInteger(const Token &token, int num)
+            : NodeTyped(NodeType::INTEGER, token), _num(num) {
 
     }
 
@@ -47,7 +50,8 @@ namespace coy {
         return std::string(height * 2, ' ') + "int " + std::to_string(_num);
     }
 
-    NodeFloat::NodeFloat(float num) : NodeTyped(NodeType::FLOAT), _num(num) {
+    NodeFloat::NodeFloat(const Token &token, float num)
+            : NodeTyped(NodeType::FLOAT, token), _num(num) {
 
     }
 
@@ -55,7 +59,8 @@ namespace coy {
         return std::string(height * 2, ' ') + "float " + std::to_string(_num);
     }
 
-    NodeDataType::NodeDataType(std::string type) : NodeTyped(NodeType::DATA_TYPE), _type(std::move(type)) {
+    NodeDataType::NodeDataType(const Token &token, std::string type)
+            : NodeTyped(NodeType::DATA_TYPE, token), _type(std::move(type)) {
 
     }
 
@@ -63,17 +68,18 @@ namespace coy {
         return std::string(height * 2, ' ') + "type " + _type;
     }
 
-    NodeUnaryOperator::NodeUnaryOperator(std::string op, const std::shared_ptr<NodeTyped> &node)
-            : NodeTyped(NodeType::UNARY_OPERATOR),
+    NodeUnaryOperator::NodeUnaryOperator(const Token &token, std::string op, const std::shared_ptr<NodeTyped> &node)
+            : NodeTyped(NodeType::UNARY_OPERATOR, token),
               _op(std::move(op)), _node(node) {}
 
     std::string NodeUnaryOperator::toString(int height) const {
         return std::string(height * 2, ' ') + "unary op " + _op + "\n" + _node->toString(height + 1);
     }
 
-    NodeBinaryOperator::NodeBinaryOperator(std::string op, const std::shared_ptr<NodeTyped> &left,
+    NodeBinaryOperator::NodeBinaryOperator(const Token &token, std::string op,
+                                           const std::shared_ptr<NodeTyped> &left,
                                            const std::shared_ptr<NodeTyped> &right)
-            : NodeTyped(NodeType::BINARY_OPERATOR),
+            : NodeTyped(NodeType::BINARY_OPERATOR, token),
               _op(std::move(op)), _left(left),
               _right(right) {
 
@@ -84,9 +90,11 @@ namespace coy {
                _right->toString(height + 1);
     }
 
-    NodeIf::NodeIf(const std::shared_ptr<NodeTyped> &condition, const std::shared_ptr<Node> &then,
-                   const std::shared_ptr<Node> &elseStatement) : Node(NodeType::IF), _condition(condition), _then(then),
-                                                                 _else(elseStatement) {
+    NodeIf::NodeIf(const Token &token, const std::shared_ptr<NodeTyped> &condition,
+                   const std::shared_ptr<Node> &then,
+                   const std::shared_ptr<Node> &elseStatement)
+            : Node(NodeType::IF, token), _condition(condition), _then(then),
+              _else(elseStatement) {
 
     }
 
@@ -95,8 +103,9 @@ namespace coy {
                _then->toString(height + 1) + (_else ? "\n" + _else->toString(height + 1) : "");
     }
 
-    NodeWhile::NodeWhile(const std::shared_ptr<NodeTyped> &condition, const std::shared_ptr<Node> &body) :
-            Node(NodeType::WHILE), _condition(condition), _body(body) {
+    NodeWhile::NodeWhile(const Token &token, const std::shared_ptr<NodeTyped> &condition,
+                         const std::shared_ptr<Node> &body)
+            : Node(NodeType::WHILE, token), _condition(condition), _body(body) {
 
     }
 
@@ -105,7 +114,7 @@ namespace coy {
                _body->toString(height + 1);
     }
 
-    NodeBreak::NodeBreak() : Node(NodeType::BREAK) {
+    NodeBreak::NodeBreak(const Token &token) : Node(NodeType::BREAK, token) {
 
     }
 
@@ -113,7 +122,7 @@ namespace coy {
         return std::string(height * 2, ' ') + "break";
     }
 
-    NodeContinue::NodeContinue() : Node(NodeType::CONTINUE) {
+    NodeContinue::NodeContinue(const Token &token) : Node(NodeType::CONTINUE, token) {
 
     }
 
@@ -121,7 +130,8 @@ namespace coy {
         return std::string(height * 2, ' ') + "continue";
     }
 
-    NodeReturn::NodeReturn(const std::shared_ptr<NodeTyped> &expression) : Node(NodeType::RETURN), _expression(expression) {
+    NodeReturn::NodeReturn(const Token &token, const std::shared_ptr<NodeTyped> &expression)
+            : Node(NodeType::RETURN, token), _expression(expression) {
 
     }
 
@@ -132,10 +142,11 @@ namespace coy {
         return str;
     }
 
-    NodeDefinition::NodeDefinition(const std::shared_ptr<NodeIdentifier> &identifier,
+    NodeDefinition::NodeDefinition(const Token &token,
+                                   const std::shared_ptr<NodeIdentifier> &identifier,
                                    const std::shared_ptr<NodeTyped> &initialValue,
                                    const std::vector<int> &dimensions) :
-            Node(NodeType::DEFINITION), _identifier(identifier),
+            Node(NodeType::DEFINITION, token), _identifier(identifier),
             _initialValue(initialValue), _dimensions(dimensions) {
 
     }
@@ -157,9 +168,9 @@ namespace coy {
         return str;
     }
 
-    NodeDeclaration::NodeDeclaration(const std::shared_ptr<NodeDataType> &type,
+    NodeDeclaration::NodeDeclaration(const Token &token, const std::shared_ptr<NodeDataType> &type,
                                      const std::vector<std::shared_ptr<NodeDefinition>> &definitions)
-            : Node(NodeType::DECLARATION), _type(type), _definitions(definitions) {
+            : Node(NodeType::DECLARATION, token), _type(type), _definitions(definitions) {
 
     }
 
@@ -172,8 +183,10 @@ namespace coy {
         return str;
     }
 
-    NodeAssignment::NodeAssignment(const std::shared_ptr<NodeLeftValue> &left, const std::shared_ptr<NodeTyped> &expression) :
-            Node(NodeType::ASSIGNMENT), _left(left), _expression(expression) {
+    NodeAssignment::NodeAssignment(const Token &token,
+                                   const std::shared_ptr<NodeLeftValue> &left,
+                                   const std::shared_ptr<NodeTyped> &expression) :
+            Node(NodeType::ASSIGNMENT, token), _left(left), _expression(expression) {
 
     }
 
@@ -182,8 +195,8 @@ namespace coy {
                _expression->toString(height + 1);
     }
 
-    NodeBlock::NodeBlock(const std::vector<std::shared_ptr<Node>> &statements)
-    : Node(NodeType::BLOCK), _statements(statements) {}
+    NodeBlock::NodeBlock(const Token &token, const std::vector<std::shared_ptr<Node>> &statements)
+            : Node(NodeType::BLOCK, token), _statements(statements) {}
 
     std::string NodeBlock::toString(int height) const {
         std::string str = std::string(height * 2, ' ') + "block";
@@ -193,10 +206,11 @@ namespace coy {
         return str;
     }
 
-    NodeFunctionParameter::NodeFunctionParameter(const std::shared_ptr<NodeDataType> &type,
+    NodeFunctionParameter::NodeFunctionParameter(const Token &token,
+                                                 const std::shared_ptr<NodeDataType> &type,
                                                  const std::shared_ptr<NodeIdentifier> &identifier, bool isPointer,
                                                  const std::vector<int> &dimensions) :
-            Node(NodeType::FUNCTION_PARAMETER), _type(type), _identifier(identifier), _isPointer(isPointer),
+            Node(NodeType::FUNCTION_PARAMETER, token), _type(type), _identifier(identifier), _isPointer(isPointer),
             _dimensions(dimensions) {
 
     }
@@ -217,11 +231,12 @@ namespace coy {
         return str;
     }
 
-    NodeFunction::NodeFunction(const std::shared_ptr<NodeDataType> &returnType,
+    NodeFunction::NodeFunction(const Token &token,
+                               const std::shared_ptr<NodeDataType> &returnType,
                                const std::shared_ptr<NodeIdentifier> &name,
                                const std::vector<std::shared_ptr<NodeFunctionParameter>> &params,
                                const std::shared_ptr<NodeBlock> &body) :
-            Node(NodeType::FUNCTION), _returnType(returnType), _name(name),
+            Node(NodeType::FUNCTION, token), _returnType(returnType), _name(name),
             _params(params), _body(body) {
 
     }
@@ -236,9 +251,10 @@ namespace coy {
         return str;
     }
 
-    NodeFunctionCall::NodeFunctionCall(const std::shared_ptr<NodeIdentifier> &identifier,
+    NodeFunctionCall::NodeFunctionCall(const Token &token,
+                                       const std::shared_ptr<NodeIdentifier> &identifier,
                                        const std::vector<std::shared_ptr<NodeTyped>> &arguments) :
-            NodeTyped(NodeType::FUNCTION_CALL), _identifier(identifier), _arguments(arguments) {
+            NodeTyped(NodeType::FUNCTION_CALL, token), _identifier(identifier), _arguments(arguments) {
 
     }
 
@@ -250,8 +266,8 @@ namespace coy {
         return str;
     }
 
-    NodeProgram::NodeProgram(const std::vector<std::shared_ptr<Node>> &nodes)
-            : Node(NodeType::PROGRAM), _nodes(nodes) {
+    NodeProgram::NodeProgram(const Token &token, const std::vector<std::shared_ptr<Node>> &nodes)
+            : Node(NodeType::PROGRAM, token), _nodes(nodes) {
 
     }
 

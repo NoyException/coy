@@ -12,7 +12,7 @@ namespace coy {
             }, [](const Token &token) {
                 return "identifier expected but got '" + token.value + "'";
             })->map<std::shared_ptr<NodeIdentifier>>([](const Token &token) {
-                return std::make_shared<NodeIdentifier>(token.value);
+                return std::make_shared<NodeIdentifier>(token, token.value);
             });
 
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeDataType>>> CoyParsers::DATA_TYPE =
@@ -21,7 +21,7 @@ namespace coy {
             }, [](const Token &token) {
                 return "data type expected but got '" + token.value + "'";
             })->map<std::shared_ptr<NodeDataType>>([](const Token &token) {
-                return std::make_shared<NodeDataType>(token.value);
+                return std::make_shared<NodeDataType>(token, token.value);
             });
 
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeInteger>>> CoyParsers::INTEGER =
@@ -30,7 +30,7 @@ namespace coy {
             }, [](const Token &token) {
                 return "integer expected but got '" + token.value + "'";
             })->map<std::shared_ptr<NodeInteger>>([](const Token &token) {
-                return std::make_shared<NodeInteger>(std::stoi(token.value));
+                return std::make_shared<NodeInteger>(token, std::stoi(token.value));
             });
 
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeFloat>>> CoyParsers::FLOAT =
@@ -39,7 +39,7 @@ namespace coy {
             }, [](const Token &token) {
                 return "float expected but got '" + token.value + "'";
             })->map<std::shared_ptr<NodeFloat>>([](const Token &token) {
-                return std::make_shared<NodeFloat>(std::stof(token.value));
+                return std::make_shared<NodeFloat>(token, std::stof(token.value));
             });
 
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> CoyParsers::NUMBER =
@@ -58,7 +58,8 @@ namespace coy {
                    + " expected but got '" + token.value + "'";
         })->map<CoyParsers::BinaryOperator>([](const Token &token) {
             return [token](const std::shared_ptr<NodeTyped> &left, const std::shared_ptr<NodeTyped> &right) {
-                return (std::shared_ptr<NodeTyped>) std::make_shared<NodeBinaryOperator>(token.value, left, right);
+                return (std::shared_ptr<NodeTyped>) std::make_shared<NodeBinaryOperator>(token, token.value, left,
+                                                                                         right);
             };
         });
     }
@@ -137,7 +138,7 @@ namespace coy {
                         else
                             return SIGNED_TERM->map<std::shared_ptr<NodeTyped>>(
                                     [token](const std::shared_ptr<NodeTyped> &node) {
-                                        return std::make_shared<NodeUnaryOperator>(token.value, node);
+                                        return std::make_shared<NodeUnaryOperator>(token, token.value, node);
                                     }
                             );
                     }
@@ -185,9 +186,9 @@ namespace coy {
                 return Parsers::whileSatisfy(LEFT_SQUARE_BRACKET, EXPRESSION->skip(RIGHT_SQUARE_BRACKET))
                         ->map<std::shared_ptr<NodeLeftValue>>(
                                 [identifier](const std::vector<std::shared_ptr<NodeTyped>> &indexes) {
-                                    return std::make_shared<NodeLeftValue>(identifier, indexes);
+                                    return std::make_shared<NodeLeftValue>(identifier->getToken(), identifier, indexes);
                                 }
-                );
+                        );
             });
 
     std::shared_ptr<Parser<Token, Token>> generateKeyword(const std::string &keyword) {
@@ -234,7 +235,8 @@ namespace coy {
                                                     ->orElse(nullptr)
                                                     ->map<std::shared_ptr<NodeDefinition>>([identifier, dimensions](
                                                             const std::shared_ptr<NodeTyped> &expr) {
-                                                        return std::make_shared<NodeDefinition>(identifier, expr,
+                                                        return std::make_shared<NodeDefinition>(identifier->getToken(),
+                                                                                                identifier, expr,
                                                                                                 dimensions);
                                                     });
                                         }
@@ -248,7 +250,7 @@ namespace coy {
                         return Parsers::seperatedEndBy(VARIABLE_DEFINITION, COMMA, END_LINE, true)
                                 ->map<std::shared_ptr<NodeDeclaration>>([type](
                                         const std::vector<std::shared_ptr<NodeDefinition>> &definitions) {
-                                    return std::make_shared<NodeDeclaration>(type, definitions);
+                                    return std::make_shared<NodeDeclaration>(type->getToken(), type, definitions);
                                 });
                     }
             );
@@ -261,7 +263,8 @@ namespace coy {
                             [](const std::shared_ptr<NodeLeftValue> &leftValue) {
                                 return EXPRESSION->map<std::shared_ptr<Node>>(
                                         [leftValue](const std::shared_ptr<NodeTyped> &expr) {
-                                            return std::make_shared<NodeAssignment>(leftValue, expr);
+                                            return std::make_shared<NodeAssignment>(leftValue->getToken(), leftValue,
+                                                                                    expr);
                                         }
                                 );
                             });
@@ -271,64 +274,81 @@ namespace coy {
 
     //if_statement = 'if' '(' expr ')' statement ('else' statement)?
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeIf>>> CoyParsers::IF_STATEMENT =
-            IF->then(LEFT_ROUND_BRACKET)
-                    ->then(EXPRESSION)
-                    ->skip(RIGHT_ROUND_BRACKET)
-                    ->bind<std::shared_ptr<NodeIf>>(
-                            [](const std::shared_ptr<NodeTyped> &condition) {
-                                return STATEMENT->bind<std::shared_ptr<NodeIf>>(
-                                        [condition](
-                                                const std::shared_ptr<Node> &statement) {
-                                            return Parsers::ifElse(ELSE, STATEMENT,
-                                                                   Parsers::pure<Token, std::shared_ptr<Node>>(nullptr))
-                                                    ->map<std::shared_ptr<NodeIf>>([condition, statement](
-                                                            const std::shared_ptr<Node> &elseStatement) {
-                                                        return std::make_shared<NodeIf>(condition, statement,
-                                                                                        elseStatement);
-                                                    });
-                                        }
-                                );
-                            });
+            IF->bind<std::shared_ptr<NodeIf>>([](const Token &token) {
+                return LEFT_ROUND_BRACKET
+                        ->then(EXPRESSION)
+                        ->skip(RIGHT_ROUND_BRACKET)
+                        ->bind<std::shared_ptr<NodeIf>>(
+                                [token](const std::shared_ptr<NodeTyped> &condition) {
+                                    return STATEMENT->bind<std::shared_ptr<NodeIf>>(
+                                            [token, condition](
+                                                    const std::shared_ptr<Node> &statement) {
+                                                return Parsers::ifElse(ELSE, STATEMENT,
+                                                                       Parsers::pure<Token, std::shared_ptr<Node>>(
+                                                                               nullptr))
+                                                        ->map<std::shared_ptr<NodeIf>>([token, condition, statement](
+                                                                const std::shared_ptr<Node> &elseStatement) {
+                                                            return std::make_shared<NodeIf>(token, condition, statement,
+                                                                                            elseStatement);
+                                                        });
+                                            }
+                                    );
+                                });
+            });
+
 
     //while_statement = 'while' '(' expr ')' statement
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeWhile>>> CoyParsers::WHILE_STATEMENT =
-            WHILE->then(LEFT_ROUND_BRACKET)
-                    ->then(EXPRESSION)
-                    ->skip(RIGHT_ROUND_BRACKET)
-                    ->bind<std::shared_ptr<NodeWhile>>(
-                            [](const std::shared_ptr<NodeTyped> &condition) {
-                                return STATEMENT->map<std::shared_ptr<NodeWhile>>(
-                                        [condition](const std::shared_ptr<Node> &statement) {
-                                            return std::make_shared<NodeWhile>(condition, statement);
-                                        }
-                                );
-                            });
+            WHILE->bind<std::shared_ptr<NodeWhile>>([](const Token &token) {
+                return LEFT_ROUND_BRACKET
+                        ->then(EXPRESSION)
+                        ->skip(RIGHT_ROUND_BRACKET)
+                        ->bind<std::shared_ptr<NodeWhile>>(
+                                [token](const std::shared_ptr<NodeTyped> &condition) {
+                                    return STATEMENT->map<std::shared_ptr<NodeWhile>>(
+                                            [token, condition](const std::shared_ptr<Node> &statement) {
+                                                return std::make_shared<NodeWhile>(token, condition, statement);
+                                            }
+                                    );
+                                });
+            });
 
     //break_statement = 'break' ';'
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeBreak>>> CoyParsers::BREAK_STATEMENT =
-            BREAK->then(END_LINE)->then(
-                    Parsers::pure<Token, std::shared_ptr<NodeBreak>>(std::make_shared<NodeBreak>()));
+            BREAK->skip(END_LINE)->bind<std::shared_ptr<NodeBreak>>(
+                    [](const Token &token) {
+                        return Parsers::pure<Token, std::shared_ptr<NodeBreak>>(std::make_shared<NodeBreak>(token));
+                    });
 
     //continue_statement = 'continue' ';'
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeContinue>>> CoyParsers::CONTINUE_STATEMENT =
-            CONTINUE->then(END_LINE)->then(
-                    Parsers::pure<Token, std::shared_ptr<NodeContinue>>(std::make_shared<NodeContinue>()));
+            CONTINUE->skip(END_LINE)->bind<std::shared_ptr<NodeContinue>>(
+                    [](const Token &token) {
+                        return Parsers::pure<Token, std::shared_ptr<NodeContinue>>(
+                                std::make_shared<NodeContinue>(token));
+                    });
 
     //return_statement = 'return' (expr)? ';'
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeReturn>>> CoyParsers::RETURN_STATEMENT =
-            RETURN->then(EXPRESSION->orElse(nullptr))->skip(END_LINE)->map<std::shared_ptr<NodeReturn>>(
-                    [](const std::shared_ptr<NodeTyped> &expr) {
-                        return std::make_shared<NodeReturn>(expr);
+            RETURN->bind<std::shared_ptr<NodeReturn>>(
+                    [](const Token &token) {
+                        return EXPRESSION->orElse(nullptr)->skip(END_LINE)->map<std::shared_ptr<NodeReturn>>(
+                                [token](const std::shared_ptr<NodeTyped> &expr) {
+                                    return std::make_shared<NodeReturn>(token, expr);
+                                });
                     });
 
     //code_block = '{' (statement | var_decl)* '}'
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeBlock>>> CoyParsers::CODE_BLOCK =
-            LEFT_BRACE
-                    ->then(Parsers::endBy(
-                            STATEMENT->orElse(VARIABLE_DECLARATION->as<std::shared_ptr<Node>>()),
-                            RIGHT_BRACE))
-                    ->map<std::shared_ptr<NodeBlock>>([](const std::vector<std::shared_ptr<Node>> &statements) {
-                        return std::make_shared<NodeBlock>(statements);
+            LEFT_BRACE->bind<std::shared_ptr<NodeBlock>>(
+                    [](const Token &token) {
+                        return Parsers::endBy(
+                                STATEMENT->orElse(VARIABLE_DECLARATION->as<std::shared_ptr<Node>>()),
+                                RIGHT_BRACE)
+                                ->map<std::shared_ptr<NodeBlock>>(
+                                        [token](const std::vector<std::shared_ptr<Node>> &statements) {
+                                            return std::make_shared<NodeBlock>(token, statements);
+                                        });
                     });
 
     //function_param = data_type identifier ("[]" ('[' int ']')*)?
@@ -352,11 +372,13 @@ namespace coy {
                                                                     dimensions.push_back(node->getNumber());
                                                                 }
                                                                 return std::make_shared<NodeFunctionParameter>(
-                                                                        type, identifier, true, dimensions);
+                                                                        type->getToken(), type, identifier, true,
+                                                                        dimensions);
                                                             }
                                                     ),
                                             Parsers::pure<Token, std::shared_ptr<NodeFunctionParameter>>(
-                                                    std::make_shared<NodeFunctionParameter>(type, identifier, false)
+                                                    std::make_shared<NodeFunctionParameter>(type->getToken(), type,
+                                                                                            identifier, false)
                                             )
                                     );
                                 }
@@ -379,10 +401,13 @@ namespace coy {
                                                         return CODE_BLOCK->map<std::shared_ptr<NodeFunction>>(
                                                                 [type, identifier, params](
                                                                         const std::shared_ptr<NodeBlock> &block) {
-                                                                    return std::make_shared<NodeFunction>(type,
-                                                                                                          identifier,
-                                                                                                          params,
-                                                                                                          block);
+                                                                    return std::make_shared<NodeFunction>(
+                                                                            type->getToken(),
+                                                                            type,
+                                                                            identifier,
+                                                                            params,
+                                                                            block
+                                                                    );
                                                                 }
                                                         );
                                                     }
@@ -400,21 +425,27 @@ namespace coy {
                                 ->then(Parsers::seperatedEndBy(EXPRESSION, COMMA, RIGHT_ROUND_BRACKET))
                                 ->map<std::shared_ptr<NodeFunctionCall>>(
                                         [identifier](const std::vector<std::shared_ptr<NodeTyped>> &args) {
-                                            return std::make_shared<NodeFunctionCall>(identifier, args);
+                                            return std::make_shared<NodeFunctionCall>(identifier->getToken(), identifier, args);
                                         }
                                 );
                     });
 
     //program = (var_decl | function)* $
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeProgram>>> CoyParsers::PROGRAM =
-            Parsers::endBy(VARIABLE_DECLARATION
-                                   ->as<std::shared_ptr<Node>>()
-                                   ->orElse(FUNCTION->as<std::shared_ptr<Node>>()),
-                           Parsers::end<Token, std::shared_ptr<Node>>())
-                    ->map<std::shared_ptr<NodeProgram>>(
-                            [](const std::vector<std::shared_ptr<Node>> &nodes) {
-                                return std::make_shared<NodeProgram>(nodes);
-                            });
+            Parsers::lookAhead<Token>()
+                    ->bind<std::shared_ptr<NodeProgram>>(
+                            [](const Token &token) {
+                                return Parsers::endBy(VARIABLE_DECLARATION
+                                                              ->as<std::shared_ptr<Node>>()
+                                                              ->orElse(FUNCTION->as<std::shared_ptr<Node>>()),
+                                                      Parsers::end<Token, std::shared_ptr<Node>>())
+                                        ->map<std::shared_ptr<NodeProgram>>(
+                                                [token](const std::vector<std::shared_ptr<Node>> &nodes) {
+                                                    return std::make_shared<NodeProgram>(token, nodes);
+                                                });
+                            }
+                    );
+            
 
     const std::shared_ptr<Parser<Token, std::shared_ptr<Node>>> CoyParsers::PARSER =
             PROGRAM->as<std::shared_ptr<Node>>()->skip(Parsers::end<Token, std::shared_ptr<Node>>());

@@ -8,6 +8,7 @@
 #include <string>
 #include <stdexcept>
 #include <memory>
+#include <utility>
 #include <vector>
 #include "Token.h"
 
@@ -40,13 +41,16 @@ namespace coy {
     class Node : public std::enable_shared_from_this<Node> {
     private:
         NodeType _type;
+        Token _token;
     protected:
-        explicit Node(NodeType type) : _type(type) {}
+        explicit Node(NodeType type, Token token) : _type(type), _token(std::move(token)) {}
 
     public:
         virtual ~Node() = default;
 
         [[nodiscard]] NodeType getType() const { return _type; }
+        
+        [[nodiscard]] Token getToken() const { return _token; }
 
         [[nodiscard]] std::string toString() const;
 
@@ -81,7 +85,7 @@ namespace coy {
     private:
         T _raw;
     public:
-        explicit NodeRaw(T raw) : Node(NodeType::RAW), _raw(raw) {}
+        explicit NodeRaw(const Token& token, T raw) : Node(NodeType::RAW, token), _raw(raw) {}
 
         [[nodiscard]] std::string toString(int height) const override {
             return std::string(height * 2, ' ') + "raw";
@@ -98,7 +102,7 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::IDENTIFIER;
 
-        explicit NodeIdentifier(std::string name);
+        explicit NodeIdentifier(const Token& token, std::string name);
 
         [[nodiscard]] std::string toString(int height) const override;
 
@@ -107,7 +111,7 @@ namespace coy {
 
     class NodeTyped : public Node {
     public:
-        explicit NodeTyped(NodeType type);
+        explicit NodeTyped(NodeType type, const Token& token);
     };
 
     class NodeLeftValue : public NodeTyped {
@@ -117,7 +121,8 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::LEFT_VALUE;
 
-        explicit NodeLeftValue(const std::shared_ptr<NodeIdentifier> &identifier,
+        explicit NodeLeftValue(const Token& token, 
+                               const std::shared_ptr<NodeIdentifier> &identifier,
                                const std::vector<std::shared_ptr<NodeTyped>> &indexes);
 
         [[nodiscard]] std::string toString(int height) const override;
@@ -133,7 +138,7 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::INTEGER;
 
-        explicit NodeInteger(int num);
+        explicit NodeInteger(const Token& token, int num);
 
         [[nodiscard]] std::string toString(int height) const override;
 
@@ -146,7 +151,7 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::FLOAT;
 
-        explicit NodeFloat(float num);
+        explicit NodeFloat(const Token& token, float num);
 
         [[nodiscard]] std::string toString(int height) const override;
 
@@ -159,7 +164,7 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::DATA_TYPE;
 
-        explicit NodeDataType(std::string type);
+        explicit NodeDataType(const Token& token, std::string type);
 
         [[nodiscard]] std::string toString(int height) const override;
         
@@ -173,7 +178,7 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::UNARY_OPERATOR;
 
-        explicit NodeUnaryOperator(std::string op, const std::shared_ptr<NodeTyped> &node);
+        explicit NodeUnaryOperator(const Token& token, std::string op, const std::shared_ptr<NodeTyped> &node);
 
         [[nodiscard]] std::string toString(int height) const override;
 
@@ -190,7 +195,8 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::BINARY_OPERATOR;
 
-        explicit NodeBinaryOperator(std::string op, const std::shared_ptr<NodeTyped> &left,
+        explicit NodeBinaryOperator(const Token& token, std::string op,
+                                    const std::shared_ptr<NodeTyped> &left,
                                     const std::shared_ptr<NodeTyped> &right);
 
         [[nodiscard]] std::string toString(int height) const override;
@@ -210,7 +216,8 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::IF;
 
-        explicit NodeIf(const std::shared_ptr<NodeTyped> &condition, const std::shared_ptr<Node> &then,
+        explicit NodeIf(const Token& token, const std::shared_ptr<NodeTyped> &condition,
+                        const std::shared_ptr<Node> &then,
                         const std::shared_ptr<Node> &elseStatement = nullptr);
 
         [[nodiscard]] std::string toString(int height) const override;
@@ -229,7 +236,8 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::WHILE;
 
-        explicit NodeWhile(const std::shared_ptr<NodeTyped> &condition, const std::shared_ptr<Node> &body);
+        explicit NodeWhile(const Token& token, const std::shared_ptr<NodeTyped> &condition,
+                           const std::shared_ptr<Node> &body);
 
         [[nodiscard]] std::string toString(int height) const override;
 
@@ -242,7 +250,7 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::BREAK;
 
-        explicit NodeBreak();
+        explicit NodeBreak(const Token& token);
 
         [[nodiscard]] std::string toString(int height) const override;
     };
@@ -251,7 +259,7 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::CONTINUE;
 
-        explicit NodeContinue();
+        explicit NodeContinue(const Token& token);
 
         [[nodiscard]] std::string toString(int height) const override;
     };
@@ -262,7 +270,7 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::RETURN;
 
-        explicit NodeReturn(const std::shared_ptr<NodeTyped> &expression);
+        explicit NodeReturn(const Token& token, const std::shared_ptr<NodeTyped> &expression);
 
         [[nodiscard]] std::string toString(int height) const override;
 
@@ -277,7 +285,8 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::DEFINITION;
 
-        explicit NodeDefinition(const std::shared_ptr<NodeIdentifier> &identifier,
+        explicit NodeDefinition(const Token& token, 
+                                const std::shared_ptr<NodeIdentifier> &identifier,
                                 const std::shared_ptr<NodeTyped> &initialValue,
                                 const std::vector<int> &dimensions);
 
@@ -297,7 +306,7 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::DECLARATION;
 
-        explicit NodeDeclaration(const std::shared_ptr<NodeDataType> &type,
+        explicit NodeDeclaration(const Token& token, const std::shared_ptr<NodeDataType> &type,
                                  const std::vector<std::shared_ptr<NodeDefinition>> &definitions);
 
         [[nodiscard]] std::string toString(int height) const override;
@@ -315,7 +324,8 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::ASSIGNMENT;
 
-        explicit NodeAssignment(const std::shared_ptr<NodeLeftValue> &left, const std::shared_ptr<NodeTyped> &expression);
+        explicit NodeAssignment(const Token& token, const std::shared_ptr<NodeLeftValue> &left,
+                                const std::shared_ptr<NodeTyped> &expression);
 
         [[nodiscard]] std::string toString(int height) const override;
 
@@ -330,7 +340,7 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::BLOCK;
 
-        explicit NodeBlock(const std::vector<std::shared_ptr<Node>> &statements);
+        explicit NodeBlock(const Token& token, const std::vector<std::shared_ptr<Node>> &statements);
 
         [[nodiscard]] std::string toString(int height) const override;
 
@@ -346,7 +356,7 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::FUNCTION_PARAMETER;
 
-        explicit NodeFunctionParameter(const std::shared_ptr<NodeDataType> &type,
+        explicit NodeFunctionParameter(const Token& token, const std::shared_ptr<NodeDataType> &type,
                                        const std::shared_ptr<NodeIdentifier> &identifier, bool isPointer,
                                        const std::vector<int> &dimensions = {});
 
@@ -370,7 +380,8 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::FUNCTION;
 
-        explicit NodeFunction(const std::shared_ptr<NodeDataType> &returnType,
+        explicit NodeFunction(const Token& token, 
+                              const std::shared_ptr<NodeDataType> &returnType,
                               const std::shared_ptr<NodeIdentifier> &name,
                               const std::vector<std::shared_ptr<NodeFunctionParameter>> &params,
                               const std::shared_ptr<NodeBlock> &body);
@@ -393,7 +404,8 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::FUNCTION_CALL;
 
-        explicit NodeFunctionCall(const std::shared_ptr<NodeIdentifier> &identifier,
+        explicit NodeFunctionCall(const Token& token, 
+                                  const std::shared_ptr<NodeIdentifier> &identifier,
                                   const std::vector<std::shared_ptr<NodeTyped>> &arguments);
 
         [[nodiscard]] std::string toString(int height) const override;
@@ -409,7 +421,7 @@ namespace coy {
     public:
         static const NodeType TYPE = NodeType::PROGRAM;
 
-        explicit NodeProgram(const std::vector<std::shared_ptr<Node>> &nodes);
+        explicit NodeProgram(const Token& token, const std::vector<std::shared_ptr<Node>> &nodes);
 
         [[nodiscard]] std::string toString(int height) const override;
 

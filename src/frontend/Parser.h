@@ -769,7 +769,7 @@ namespace coy {
                                                              const I &i) {
                                                          return "Unexpected symbol";
                                                      }) {
-            return std::make_shared<Parser<I, I>>([predicate, message](Input<I> input) -> Output<I, I> {
+            return std::make_shared<Parser<I, I>>([predicate, message](Input<I> input) {
                 if (input.end())
                     return Output<I, I>::failure(input.getIndex(), "End of input");
                 if (predicate(input.current())) {
@@ -777,6 +777,41 @@ namespace coy {
                 } else {
                     return Output<I, I>::failure(input.getIndex(), message(input.current()));
                 }
+            });
+        }
+
+        /**
+         * 返回一个功能如下的Parser：向前看一个输入，返回一个成功的结果，结果为当前输入。
+         * @tparam I 
+         * @return 
+         */
+        template<typename I>
+        static std::shared_ptr<Parser<I, I>> lookAhead() {
+            return std::make_shared<Parser<I, I>>([](Input<I> input) {
+                if (input.end())
+                    return Output<I, I>::failure(input.getIndex(), "End of input");
+                return Output<I, I>::success(input.current(), input);
+            });
+        }
+
+        /**
+         * 返回一个功能如下的Parser：向前看k个输入，返回一个成功的结果，结果为当前输入。
+         * @tparam I 
+         * @param k 
+         * @return 
+         */
+        template<typename I>
+        static std::shared_ptr<Parser<I, std::vector<I>>> lookAhead(int k) {
+            return std::make_shared<Parser<I, std::vector<I>>>([k](Input<I> input) {
+                std::vector<I> results;
+                Input<I> current = input;
+                for (int i = 0; i < k; ++i) {
+                    if (current.end())
+                        return Output<I, std::vector<I>>::failure(current.getIndex(), "End of input");
+                    results.push_back(current.current());
+                    current = current + 1;
+                }
+                return Output<I, std::vector<I>>::success(results, input);
             });
         }
     };

@@ -7,6 +7,10 @@
 
 using namespace coy;
 
+void printError(const std::string& content, size_t pos){
+    std::cout << content.substr(0, pos) << "错误在这里" << content.substr(pos) << std::endl;
+}
+
 int main(int argc, char *argv[]) {
     //读取文件名并打开文件
     if (argc != 2) {
@@ -35,8 +39,8 @@ int main(int argc, char *argv[]) {
         std::cout << std::endl;
         auto message = parseResult.getFailure().message();
         std::cout << message.second << std::endl;
-        size_t pos = tokens[message.first].position;
-        std::cout << content.substr(0, pos) << "错误在这里" << content.substr(pos) << std::endl;
+        auto pos = tokens[message.first].position;
+        printError(content, pos);
         return 2;
     }
     //语义分析
@@ -50,6 +54,8 @@ int main(int argc, char *argv[]) {
     auto analyzeResult = analyzer.analyze(parseResult.data());
     if (!analyzeResult.isSuccess()) {
         std::cout << analyzeResult.getMessage() << std::endl;
+        auto pos = analyzeResult.getNode()->getToken().position;
+        printError(content, pos);
         return 3;
     }
     std::cout << "Success" << std::endl;
