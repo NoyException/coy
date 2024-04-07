@@ -237,7 +237,7 @@ namespace coy {
             case NodeType::FLOAT:
             case NodeType::UNARY_OPERATOR:
             case NodeType::BINARY_OPERATOR: {
-                auto type = getType(std::dynamic_pointer_cast<NodeTyped>(node));
+                auto type = getType(node->as<NodeTyped>());
                 if (type == nullptr) {
                     return AnalyzeResult::failure("Unknown type of expression", node);
                 }

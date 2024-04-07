@@ -10,13 +10,16 @@
 #include <memory>
 #include <utility>
 #include <vector>
+#include <unordered_map>
 #include "Token.h"
 
 namespace coy {
 
     enum class NodeType {
+        NODE,
         RAW,
         IDENTIFIER,
+        TYPED,
         LEFT_VALUE,
         INTEGER,
         FLOAT,
@@ -37,6 +40,8 @@ namespace coy {
         FUNCTION_CALL,
         PROGRAM,
     };
+    
+    bool isAssignableFrom(NodeType type, NodeType parent);
 
     class Node : public std::enable_shared_from_this<Node> {
     private:
@@ -46,6 +51,8 @@ namespace coy {
         explicit Node(NodeType type, Token token) : _type(type), _token(std::move(token)) {}
 
     public:
+        static const NodeType TYPE = NodeType::NODE;
+        
         virtual ~Node() = default;
 
         [[nodiscard]] NodeType getType() const { return _type; }
@@ -57,13 +64,13 @@ namespace coy {
         [[nodiscard]] virtual std::string toString(int height) const = 0;
 
         template<class T>
-        bool instanceOf() const {
-            return _type == std::remove_pointer_t<T>::TYPE;
+        bool is() const {
+            return isAssignableFrom(_type, std::remove_pointer_t<T>::TYPE);
         }
 
         template<class T>
         std::shared_ptr<T> as() {
-            if (instanceOf<T>()) {
+            if (is<T>()) {
                 return std::dynamic_pointer_cast<T>(shared_from_this());
             } else {
                 throw std::runtime_error("Node is not of _type " + std::string(typeid(T).name()));
@@ -72,7 +79,7 @@ namespace coy {
 
         template<class T>
         std::shared_ptr<const T> as() const {
-            if (instanceOf<T>()) {
+            if (is<T>()) {
                 return std::dynamic_pointer_cast<const T>(shared_from_this());
             } else {
                 throw std::runtime_error("Node is not of _type " + std::string(typeid(T).name()));
@@ -85,6 +92,8 @@ namespace coy {
     private:
         T _raw;
     public:
+        static const NodeType TYPE = NodeType::RAW;
+        
         explicit NodeRaw(const Token& token, T raw) : Node(NodeType::RAW, token), _raw(raw) {}
 
         [[nodiscard]] std::string toString(int height) const override {
@@ -111,6 +120,8 @@ namespace coy {
 
     class NodeTyped : public Node {
     public:
+        static const NodeType TYPE = NodeType::TYPED;
+        
         explicit NodeTyped(NodeType type, const Token& token);
     };
 

@@ -225,7 +225,7 @@ namespace coy {
                                     std::vector<int> result;
                                     result.reserve(nodes.size());
                                     for (const auto &node: nodes) {
-                                        result.push_back(std::dynamic_pointer_cast<NodeInteger>(node)->getNumber());
+                                        result.push_back(node->getNumber());
                                     }
                                     return result;
                                 })

@@ -8,6 +8,40 @@
 
 namespace coy {
 
+    bool isAssignableFrom(NodeType type, NodeType parent) {
+        static std::unordered_map<NodeType, NodeType> inheritance = {
+                {NodeType::RAW, NodeType::NODE},
+                {NodeType::IDENTIFIER, NodeType::TYPED},
+                {NodeType::TYPED, NodeType::NODE},
+                {NodeType::LEFT_VALUE, NodeType::TYPED},
+                {NodeType::INTEGER, NodeType::TYPED},
+                {NodeType::FLOAT, NodeType::TYPED},
+                {NodeType::DATA_TYPE, NodeType::TYPED},
+                {NodeType::UNARY_OPERATOR, NodeType::TYPED},
+                {NodeType::BINARY_OPERATOR, NodeType::TYPED},
+                {NodeType::IF, NodeType::NODE},
+                {NodeType::WHILE, NodeType::NODE},
+                {NodeType::BREAK, NodeType::NODE},
+                {NodeType::CONTINUE, NodeType::NODE},
+                {NodeType::RETURN, NodeType::NODE},
+                {NodeType::DEFINITION, NodeType::NODE},
+                {NodeType::DECLARATION, NodeType::NODE},
+                {NodeType::ASSIGNMENT, NodeType::NODE},
+                {NodeType::BLOCK, NodeType::NODE},
+                {NodeType::FUNCTION_PARAMETER, NodeType::NODE},
+                {NodeType::FUNCTION, NodeType::NODE},
+                {NodeType::FUNCTION_CALL, NodeType::TYPED},
+                {NodeType::PROGRAM, NodeType::NODE},
+        };
+        while (type != parent) {
+            if (type == NodeType::NODE) {
+                return false;
+            }
+            type = inheritance[type];
+        }
+        return true;
+    }
+
     std::string Node::toString() const {
         return toString(0);
     }
