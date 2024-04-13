@@ -318,9 +318,7 @@ namespace coy {
         }
         leftValue->getIdentifier()->setUniqueName(address->first);
         if (leftValue->getIndexes().empty()) {
-            auto load = std::make_shared<LoadInstruction>(address->second);
-            currentBlock->addInstruction(load);
-            return std::make_shared<Expression>(load);
+            return address->second;
         }
         auto indexes = leftValue->getIndexes();
         std::vector<std::shared_ptr<Expression>> translatedIndexes;
