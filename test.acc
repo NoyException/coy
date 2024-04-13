@@ -32,7 +32,14 @@ fn %main() -> () {
 let %17 = alloca i32, 20
 let %18 = offset i32, %17, [2 < 10], [1 < 2]
 let %19 = load %18
-let %27 = call %putint, %19
+let %20 = store 4, %19
+let %21 = alloca i32, 1
+let %22 = offset i32, %17, [2 < 10], [1 < 2]
+let %23 = load %22
+let %24 = call %func_0, %23
+let %25 = store %24, %21
+let %26 = load %21
+let %27 = call %putint, %26
 jmp label %Lmain_RETURN
 %Lmain_RETURN:
 ret ()

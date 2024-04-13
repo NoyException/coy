@@ -37,6 +37,10 @@ namespace coy {
         std::shared_ptr<Expression> translateExpression(
                 const std::shared_ptr<Node> &expression,
                 const std::shared_ptr<IRCodeBlock> &currentBlock);
+
+        std::shared_ptr<Expression> translateLeftValue(
+                const std::shared_ptr<NodeLeftValue> &leftValue,
+                const std::shared_ptr<IRCodeBlock> &currentBlock);
         
         bool isLastInstructionTerminator(const std::shared_ptr<IRCodeBlock> &block);
 

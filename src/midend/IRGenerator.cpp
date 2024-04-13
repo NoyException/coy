@@ -162,7 +162,7 @@ namespace coy {
             if (address == _expressions.end()) {
                 throw std::runtime_error("Undefined symbol: " + leftValue->getIdentifier()->getUniqueName());
             }
-            auto offsetAddr = translateExpression(leftValue, currentBlock);
+            auto offsetAddr = translateLeftValue(leftValue, currentBlock);
             auto value = translateExpression(assignment->getExpression(), currentBlock);
             auto result = std::make_shared<StoreInstruction>(offsetAddr, value);
             currentBlock->addInstruction(result);
@@ -301,46 +301,52 @@ namespace coy {
             currentBlock->addInstruction(result);
             return std::make_shared<Expression>(result);
         } else if (auto leftValue = expression->as<NodeLeftValue>()) {
-            auto address = _expressions.find(leftValue->getIdentifier()->getUniqueName());
-            if (address == _expressions.end()) {
-                throw std::runtime_error("Undefined symbol: " + leftValue->getIdentifier()->getName());
-            }
-            leftValue->getIdentifier()->setUniqueName(address->first);
-            if (leftValue->getIndexes().empty()) {
-                auto load = std::make_shared<LoadInstruction>(address->second);
-                currentBlock->addInstruction(load);
-                return std::make_shared<Expression>(load);
-            }
-            auto indexes = leftValue->getIndexes();
-            std::vector<std::shared_ptr<Expression>> translatedIndexes;
-            translatedIndexes.reserve(indexes.size());
-            for (const auto &item: indexes) {
-                translatedIndexes.push_back(translateExpression(item, currentBlock));
-            }
-            auto typeIt = _typeTable.find(leftValue->getIdentifier()->getUniqueName());
-            if (typeIt == _typeTable.end()) {
-                throw std::runtime_error("Undefined type: " + leftValue->getIdentifier()->getName());
-            }
-            std::vector<int> dimensions;
-            auto type = typeIt->second;
-            if (auto pointer = std::dynamic_pointer_cast<IRPointerType>(type)) {
-                dimensions.emplace_back(-1);
-                type = pointer->getPointedType();
-            }
-            if (auto array = std::dynamic_pointer_cast<IRArrayType>(type)) {
-                dimensions.insert(dimensions.end(), array->getDimensions().begin(),
-                                  array->getDimensions().end());
-                type = array->getElementType();
-            }
-            auto offset = std::make_shared<OffsetInstruction>(
-                    type, address->second, translatedIndexes, dimensions);
-            currentBlock->addInstruction(offset);
-            auto load = std::make_shared<LoadInstruction>(std::make_shared<Expression>(offset));
+            auto addr = translateLeftValue(leftValue, currentBlock);
+            auto load = std::make_shared<LoadInstruction>(addr);
             currentBlock->addInstruction(load);
             return std::make_shared<Expression>(load);
         } else {
             throw std::runtime_error("Unknown expression type");
         }
+    }
+
+    std::shared_ptr<Expression> IRGenerator::translateLeftValue(const std::shared_ptr<NodeLeftValue> &leftValue,
+                                                                const std::shared_ptr<IRCodeBlock> &currentBlock) {
+        auto address = _expressions.find(leftValue->getIdentifier()->getUniqueName());
+        if (address == _expressions.end()) {
+            throw std::runtime_error("Undefined symbol: " + leftValue->getIdentifier()->getName());
+        }
+        leftValue->getIdentifier()->setUniqueName(address->first);
+        if (leftValue->getIndexes().empty()) {
+            auto load = std::make_shared<LoadInstruction>(address->second);
+            currentBlock->addInstruction(load);
+            return std::make_shared<Expression>(load);
+        }
+        auto indexes = leftValue->getIndexes();
+        std::vector<std::shared_ptr<Expression>> translatedIndexes;
+        translatedIndexes.reserve(indexes.size());
+        for (const auto &item: indexes) {
+            translatedIndexes.push_back(translateExpression(item, currentBlock));
+        }
+        auto typeIt = _typeTable.find(leftValue->getIdentifier()->getUniqueName());
+        if (typeIt == _typeTable.end()) {
+            throw std::runtime_error("Undefined type: " + leftValue->getIdentifier()->getName());
+        }
+        std::vector<int> dimensions;
+        auto type = typeIt->second;
+        if (auto pointer = std::dynamic_pointer_cast<IRPointerType>(type)) {
+            dimensions.emplace_back(-1);
+            type = pointer->getPointedType();
+        }
+        if (auto array = std::dynamic_pointer_cast<IRArrayType>(type)) {
+            dimensions.insert(dimensions.end(), array->getDimensions().begin(),
+                              array->getDimensions().end());
+            type = array->getElementType();
+        }
+        auto offset = std::make_shared<OffsetInstruction>(
+                type, address->second, translatedIndexes, dimensions);
+        currentBlock->addInstruction(offset);
+        return std::make_shared<Expression>(offset);
     }
 
     std::shared_ptr<IRGlobalVariable>
