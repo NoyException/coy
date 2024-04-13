@@ -147,7 +147,7 @@ namespace coy {
                     std::to_string(size));
         } else if (auto offset = std::dynamic_pointer_cast<OffsetInstruction>(instruction)) {
             auto str = "let %" + offset->getBoundName() + " = offset "
-                       + offset->getDataType()->toString() + " " + translateExpression(offset->getAddress());
+                       + offset->getDataType()->toString() + ", " + translateExpression(offset->getAddress());
             auto indexes = offset->getIndexes();
             auto bounds = offset->getBounds();
             for (int i = 0; i < indexes.size(); ++i) {

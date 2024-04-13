@@ -20,7 +20,6 @@ namespace coy {
         INSTRUCTION,
         VALUE_BINDING,
         BINARY_OPERATOR,
-        POINTER,
         FUNCTION_CALL,
         MEMORY,
         ALLOCATE,

@@ -332,10 +332,12 @@ namespace coy {
                                   array->getDimensions().end());
                 type = array->getElementType();
             }
-            auto result = std::make_shared<OffsetInstruction>(
+            auto offset = std::make_shared<OffsetInstruction>(
                     type, address->second, translatedIndexes, dimensions);
-            currentBlock->addInstruction(result);
-            return std::make_shared<Expression>(result);
+            currentBlock->addInstruction(offset);
+            auto load = std::make_shared<LoadInstruction>(std::make_shared<Expression>(offset));
+            currentBlock->addInstruction(load);
+            return std::make_shared<Expression>(load);
         } else {
             throw std::runtime_error("Unknown expression type");
         }
