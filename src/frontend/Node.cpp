@@ -104,24 +104,24 @@ namespace coy {
 
     NodeUnaryOperator::NodeUnaryOperator(const Token &token, std::string op, const std::shared_ptr<NodeTyped> &node)
             : NodeTyped(NodeType::UNARY_OPERATOR, token),
-              _op(std::move(op)), _node(node) {}
+              _op(std::move(op)), _operand(node) {}
 
     std::string NodeUnaryOperator::toString(int height) const {
-        return std::string(height * 2, ' ') + "unary op " + _op + "\n" + _node->toString(height + 1);
+        return std::string(height * 2, ' ') + "unary op " + _op + "\n" + _operand->toString(height + 1);
     }
 
     NodeBinaryOperator::NodeBinaryOperator(const Token &token, std::string op,
-                                           const std::shared_ptr<NodeTyped> &left,
-                                           const std::shared_ptr<NodeTyped> &right)
+                                           const std::shared_ptr<NodeTyped> &lhs,
+                                           const std::shared_ptr<NodeTyped> &rhs)
             : NodeTyped(NodeType::BINARY_OPERATOR, token),
-              _op(std::move(op)), _left(left),
-              _right(right) {
+              _op(std::move(op)), _lhs(lhs),
+              _rhs(rhs) {
 
     }
 
     std::string NodeBinaryOperator::toString(int height) const {
-        return std::string(height * 2, ' ') + "binary op " + _op + "\n" + _left->toString(height + 1) + "\n" +
-               _right->toString(height + 1);
+        return std::string(height * 2, ' ') + "binary op " + _op + "\n" + _lhs->toString(height + 1) + "\n" +
+               _rhs->toString(height + 1);
     }
 
     NodeIf::NodeIf(const Token &token, const std::shared_ptr<NodeTyped> &condition,
@@ -186,16 +186,8 @@ namespace coy {
     }
 
     std::string NodeDefinition::toString(int height) const {
-        std::string str = std::string(height * 2, ' ') + "definition";
-        if (!_dimensions.empty()) {
-            str += " with dimensions (";
-            for (int i = 0; i < _dimensions.size(); ++i) {
-                str += std::to_string(_dimensions[i]);
-                if (i != _dimensions.size() - 1)
-                    str += ", ";
-            }
-            str += ")";
-        }
+        std::string str = std::string(height * 2, ' ') + "definition with data type "
+                + _dataType->toString();
         str += "\n" + _identifier->toString(height + 1);
         if (_initialValue)
             str += "\n" + _initialValue->toString(height + 1);

@@ -1,0 +1,47 @@
+fn %func_0(%var_0: i32) -> i32 {
+%Lfunc_0_START:
+let %0 = alloca i32, 1
+let %1 = store %var_0, %0
+let %2 = alloca i32, 1
+let %3 = load %0
+let %4 = eq %3, 1
+br %4, label %LIF_TRUE_0, label %LIF_FALSE_1
+%LIF_TRUE_0:
+let %5 = store 1, %2
+jmp label %Lfunc_0_RETURN
+%LIF_FALSE_1:
+let %6 = alloca i32, 1
+let %7 = load %0
+let %8 = load %0
+let %9 = sub %8, 1
+let %10 = call %func_0, %9
+let %11 = mul %7, %10
+let %12 = store %11, %6
+let %13 = load %6
+let %14 = store %13, %2
+jmp label %Lfunc_0_RETURN
+%LIF_EXIT_2:
+let %15 = store 0, %2
+jmp label %Lfunc_0_RETURN
+%Lfunc_0_RETURN:
+let %16 = load %2
+ret %16
+}
+fn %main() -> i32 {
+%Lmain_START:
+let %17 = alloca i32, 1
+let %18 = alloca i32, 1
+let %19 = store 5, %18
+let %20 = alloca i32, 1
+let %21 = load %18
+let %22 = call %func_0, %21
+let %23 = store %22, %20
+let %24 = load %20
+let %25 = call %putint, %24
+let %26 = load %20
+let %27 = store %26, %17
+jmp label %Lmain_RETURN
+%Lmain_RETURN:
+let %28 = load %17
+ret %28
+}

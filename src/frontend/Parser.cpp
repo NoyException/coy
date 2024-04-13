@@ -235,6 +235,7 @@ namespace coy {
                                                     ->orElse(nullptr)
                                                     ->map<std::shared_ptr<NodeDefinition>>([identifier, dimensions](
                                                             const std::shared_ptr<NodeTyped> &expr) {
+                                                        
                                                         return std::make_shared<NodeDefinition>(identifier->getToken(),
                                                                                                 identifier, expr,
                                                                                                 dimensions);
@@ -250,6 +251,9 @@ namespace coy {
                         return Parsers::seperatedEndBy(VARIABLE_DEFINITION, COMMA, END_LINE, true)
                                 ->map<std::shared_ptr<NodeDeclaration>>([type](
                                         const std::vector<std::shared_ptr<NodeDefinition>> &definitions) {
+                                    for (auto &item: definitions){
+                                        item->setBaseType(type->getTypeName());
+                                    }
                                     return std::make_shared<NodeDeclaration>(type->getToken(), type, definitions);
                                 });
                     }

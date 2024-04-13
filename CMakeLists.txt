@@ -13,7 +13,21 @@ add_executable(coy src/main.cpp
         src/frontend/Parser.cpp
         src/frontend/Parser.h
         src/frontend/SemanticAnalyzer.cpp
-        src/frontend/SemanticAnalyzer.h)
+        src/frontend/SemanticAnalyzer.h
+        src/midend/IRGenerator.cpp
+        src/midend/IRGenerator.h
+        src/midend/Value.cpp
+        src/midend/Value.h
+        src/midend/IRInstruction.cpp
+        src/midend/IRInstruction.h
+        src/frontend/DataType.cpp
+        src/frontend/DataType.h
+        src/midend/IRStructure.cpp
+        src/midend/IRStructure.h
+        src/midend/IRDataType.cpp
+        src/midend/IRDataType.h
+        src/midend/IRPrinter.cpp
+        src/midend/IRPrinter.h)
 
 add_executable(test src/test.cpp
         src/frontend/Lexer.cpp

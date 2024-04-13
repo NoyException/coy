@@ -23,6 +23,10 @@ namespace coy {
         _scopes.emplace_back();
     }
 
+    void SemanticAnalyzer::addReserved(const std::string &name) {
+        _reserved.insert(name);
+    }
+
     AnalyzeResult SemanticAnalyzer::analyze(const std::shared_ptr<Node> &node) {
         switch (node->getType()) {
             case NodeType::PROGRAM: {
@@ -50,12 +54,12 @@ namespace coy {
             case NodeType::FUNCTION: {
                 auto function = node->as<NodeFunction>();
                 auto params = function->getParams();
-                std::vector<std::shared_ptr<Type>> paramTypes;
+                std::vector<std::shared_ptr<DataType>> paramTypes;
                 paramTypes.reserve(params.size());
                 // 分析函数参数
                 for (const auto &param: params) {
-                    std::shared_ptr<Type> type = std::make_shared<ScalarType>(
-                            param->getVariableType()->getDataType());
+                    std::shared_ptr<DataType> type = std::make_shared<ScalarType>(
+                            param->getVariableType()->getTypeName());
                     if (!param->getDimensions().empty())
                         type = std::make_shared<ArrayType>(type, param->getDimensions());
                     if (param->isPointer())
@@ -63,19 +67,19 @@ namespace coy {
                     paramTypes.emplace_back(type);
                 }
                 // 分析返回值类型
-                _returnType = std::make_shared<ScalarType>(function->getReturnType()->getDataType());
+                _returnType = function->getReturnType()->getDataType();
                 if (!_returnType->isReturnType()) {
                     return AnalyzeResult::failure("Invalid return type", node);
                 }
                 auto type = std::make_shared<FunctionType>(_returnType, paramTypes);
-                auto result = declare(function->getName()->getName(), type).attach(node);
+                auto result = declare(function->getIdentifier(), type).attach(node);
                 if (!result.isSuccess()) {
                     return result;
                 }
                 // 将函数参数的声明加入到函数作用域
                 _scopes.emplace_front();
                 for (int i = 0; i < params.size(); ++i) {
-                    result = declare(params[i]->getIdentifier()->getName(), paramTypes[i]).attach(node);
+                    result = declare(params[i]->getIdentifier(), paramTypes[i]).attach(node);
                     if (!result.isSuccess()) {
                         return result;
                     }
@@ -94,14 +98,12 @@ namespace coy {
             }
             case NodeType::DECLARATION: {
                 auto declaration = node->as<NodeDeclaration>();
-                auto base = declaration->getVariableType()->getDataType();
+                auto base = declaration->getVariableType()->getTypeName();
                 if (base == "void")
                     return AnalyzeResult::failure("Variable cannot have void type", node);
                 for (auto &definition: declaration->getDefinitions()) {
-                    std::shared_ptr<Type> type = std::make_shared<ScalarType>(base);
-                    if (!definition->getDimensions().empty())
-                        type = std::make_shared<ArrayType>(type, definition->getDimensions());
-                    auto result = declare(definition->getIdentifier()->getName(), type).attach(definition);
+                    std::shared_ptr<DataType> type = definition->getDataType();
+                    auto result = declare(definition->getIdentifier(), type).attach(definition);
                     if (!result.isSuccess()) {
                         return result;
                     }
@@ -111,11 +113,11 @@ namespace coy {
                         if (!result.isSuccess()) {
                             return result;
                         }
-                        auto valueType = getType(definition->getInitialValue());
+                        auto valueType = result.getType();
                         if (valueType == nullptr) {
                             return AnalyzeResult::failure("Unknown type of initial value", node);
                         }
-                        result = assign(definition->getIdentifier()->getName(), 0,
+                        result = assign(definition->getIdentifier(), 0,
                                         valueType).attach(definition);
                         if (!result.isSuccess()) {
                             return result;
@@ -126,30 +128,28 @@ namespace coy {
             }
             case NodeType::ASSIGNMENT: {
                 auto assignment = node->as<NodeAssignment>();
-                auto name = assignment->getLeft()->getIdentifier()->getName();
-                auto indexes = assignment->getLeft()->getIndexes();
-                for (const auto &index: indexes) {
-                    auto indexType = getType(index);
-                    if (indexType == nullptr) {
-                        return AnalyzeResult::failure("Unknown type of index in left value", node);
-                    }
-                    if (*indexType != "int") {
-                        return AnalyzeResult::failure("Index in left value must be an integer", node);
-                    }
-                }
-                auto result = analyze(assignment->getExpression());
+                auto result = analyze(assignment->getLeftValue());
                 if (!result.isSuccess()) {
                     return result;
                 }
-                auto type = getType(assignment->getExpression());
+                result = analyze(assignment->getExpression());
+                if (!result.isSuccess()) {
+                    return result;
+                }
+                auto type = result.getType();
                 if (type == nullptr) {
                     return AnalyzeResult::failure("Unknown type of right value in assignment", node);
                 }
-                return assign(name, indexes.size(), type).attach(node);
+                return assign(assignment->getLeftValue()->getIdentifier(),
+                              assignment->getLeftValue()->getIndexes().size(), type).attach(node);
             }
             case NodeType::IF: {
                 auto ifNode = node->as<NodeIf>();
-                auto tmp = getType(ifNode->getCondition());
+                auto result = analyze(ifNode->getCondition());
+                if (!result.isSuccess()) {
+                    return result;
+                }
+                auto tmp = result.getType();
                 if (tmp == nullptr) {
                     return AnalyzeResult::failure("Unknown type of condition in if statement", node);
                 }
@@ -161,7 +161,7 @@ namespace coy {
                     return AnalyzeResult::failure("Condition in if statement must be numeric", node);
                 }
 
-                auto result = analyze(ifNode->getThen());
+                result = analyze(ifNode->getThen());
                 if (!result.isSuccess()) {
                     return result;
                 }
@@ -175,7 +175,11 @@ namespace coy {
             }
             case NodeType::WHILE: {
                 auto whileNode = node->as<NodeWhile>();
-                auto tmp = getType(whileNode->getCondition());
+                auto result = analyze(whileNode->getCondition());
+                if (!result.isSuccess()) {
+                    return result;
+                }
+                auto tmp = result.getType();
                 if (tmp == nullptr) {
                     return AnalyzeResult::failure("Unknown type of condition in while statement", node);
                 }
@@ -187,13 +191,17 @@ namespace coy {
             }
             case NodeType::RETURN: {
                 auto expr = node->as<NodeReturn>()->getExpression();
-                if (!expr) {
+                if (expr == nullptr) {
                     if (*_returnType != "void") {
                         return AnalyzeResult::failure("Return type mismatch", node);
                     }
                     return AnalyzeResult::success();
                 }
-                auto returnType = getType(expr);
+                auto result = analyze(expr);
+                if (!result.isSuccess()) {
+                    return result;
+                }
+                auto returnType = result.getType();
                 if (returnType == nullptr) {
                     return AnalyzeResult::failure("Unknown type of return statement", node);
                 }
@@ -204,26 +212,36 @@ namespace coy {
             }
             case NodeType::FUNCTION_CALL: {
                 auto functionCall = node->as<NodeFunctionCall>();
-                std::vector<std::shared_ptr<Type>> args;
+                std::vector<std::shared_ptr<DataType>> args;
                 for (const auto &arg: functionCall->getArguments()) {
-                    auto type = getType(arg);
+                    auto result = analyze(arg);
+                    if (!result.isSuccess()) {
+                        return result;
+                    }
+                    auto type = result.getType();
                     if (type == nullptr) {
                         return AnalyzeResult::failure("Unknown type of argument in function call", node);
                     }
                     args.push_back(type);
                 }
-                return call(functionCall->getIdentifier()->getName(), args).attach(node);
+                return call(functionCall->getIdentifier(), args).attach(node);
             }
-            case NodeType::LEFT_VALUE:{
+            case NodeType::LEFT_VALUE: {
                 auto leftValue = node->as<NodeLeftValue>();
                 auto name = leftValue->getIdentifier()->getName();
                 auto indexes = leftValue->getIndexes();
-                auto type = getType(name)->at((int) indexes.size());
+                auto searchResult = searchScope(name);
+                auto type = searchResult.second->at((int) indexes.size());
                 if (type == nullptr) {
                     return AnalyzeResult::failure("Unknown type of left value", node);
                 }
+                leftValue->getIdentifier()->setUniqueName(searchResult.first);
                 for (const auto &index: indexes) {
-                    auto indexType = getType(index);
+                    auto result = analyze(index);
+                    if (!result.isSuccess()) {
+                        return result;
+                    }
+                    auto indexType = result.getType();
                     if (indexType == nullptr) {
                         return AnalyzeResult::failure("Unknown type of index in left value", node);
                     }
@@ -231,17 +249,49 @@ namespace coy {
                         return AnalyzeResult::failure("Index in left value must be an integer", node);
                     }
                 }
-                return AnalyzeResult::success();
+                return AnalyzeResult::success(type);
             }
-            case NodeType::INTEGER:
-            case NodeType::FLOAT:
-            case NodeType::UNARY_OPERATOR:
-            case NodeType::BINARY_OPERATOR: {
-                auto type = getType(node->as<NodeTyped>());
+            case NodeType::INTEGER: {
+                return AnalyzeResult::success(std::make_shared<ScalarType>("int"));
+            }
+            case NodeType::FLOAT: {
+                return AnalyzeResult::success(std::make_shared<ScalarType>("float"));
+            }
+            case NodeType::UNARY_OPERATOR: {
+                auto unaryOperator = node->as<NodeUnaryOperator>();
+                auto result = analyze(unaryOperator->getOperand());
+                if (!result.isSuccess()) {
+                    return result;
+                }
+                auto type = result.getType();
                 if (type == nullptr) {
                     return AnalyzeResult::failure("Unknown type of expression", node);
                 }
                 return AnalyzeResult::success();
+            }
+            case NodeType::BINARY_OPERATOR: {
+                auto binaryOperator = node->as<NodeBinaryOperator>();
+                auto result = analyze(binaryOperator->getLhs());
+                if (!result.isSuccess()) {
+                    return result;
+                }
+                auto leftType = result.getType();
+                if (leftType == nullptr) {
+                    return AnalyzeResult::failure("Unknown type of left operand", node);
+                }
+                result = analyze(binaryOperator->getRhs());
+                if (!result.isSuccess()) {
+                    return result;
+                }
+                auto rightType = result.getType();
+                if (rightType == nullptr) {
+                    return AnalyzeResult::failure("Unknown type of right operand", node);
+                }
+                if (leftType->isAssignableFrom(rightType))
+                    return AnalyzeResult::success(leftType);
+                if (rightType->isAssignableFrom(leftType))
+                    return AnalyzeResult::success(rightType);
+                return AnalyzeResult::failure("DataType mismatch in binary operator", node);
             }
             case NodeType::BREAK:
             case NodeType::CONTINUE:
@@ -257,91 +307,66 @@ namespace coy {
         });
     }
 
-    std::shared_ptr<Type> SemanticAnalyzer::getType(const std::string &name) {
+    std::pair<std::string, std::shared_ptr<DataType>> SemanticAnalyzer::searchScope(const std::string &name) {
         for (const auto &scope: _scopes) {
             auto it = scope.find(name);
             if (it != scope.end()) {
                 return it->second;
             }
         }
-        return nullptr;
+        return {"", nullptr};
     }
 
-    std::shared_ptr<Type> SemanticAnalyzer::getType(const std::shared_ptr<NodeTyped> &node) {
-        switch (node->getType()) {
-            case NodeType::DATA_TYPE:
-                return std::make_shared<ScalarType>(node->as<NodeDataType>()->getDataType());
-            case NodeType::INTEGER:
-                return std::make_shared<ScalarType>("int");
-            case NodeType::FLOAT:
-                return std::make_shared<ScalarType>("float");
-            case NodeType::LEFT_VALUE: {
-                auto leftValue = node->as<NodeLeftValue>();
-                auto tmp = getType(leftValue->getIdentifier()->getName());
-                if (tmp == nullptr) {
-                    return nullptr;
-                }
-                return tmp->at((int) leftValue->getIndexes().size());
-            }
-            case NodeType::UNARY_OPERATOR:
-                return getType(node->as<NodeUnaryOperator>()->getNode());
-            case NodeType::BINARY_OPERATOR: {
-                auto left = getType(node->as<NodeBinaryOperator>()->getLeft());
-                auto right = getType(node->as<NodeBinaryOperator>()->getRight());
-                if (left == nullptr || right == nullptr) {
-                    return nullptr;
-                }
-                if (left->isAssignableFrom(right))
-                    return left;
-                if (right->isAssignableFrom(left))
-                    return right;
-                return nullptr;
-            }
-            case NodeType::FUNCTION_CALL: {
-                auto type = getType(node->as<NodeFunctionCall>()->getIdentifier()->getName())->as<FunctionType>();
-                if (type == nullptr) {
-                    return nullptr;
-                }
-                return type->getReturnType();
-            }
-            default:
-                return nullptr;
-        }
-    }
-
-    AnalyzeResult SemanticAnalyzer::declare(const std::string &name, const std::shared_ptr<Type> &type) {
+    AnalyzeResult SemanticAnalyzer::declare(const std::shared_ptr<NodeIdentifier> &identifier,
+                                            const std::shared_ptr<DataType> &type) {
+        auto name = identifier->getName();
         if (_scopes.front().count(name)) {
             return AnalyzeResult::failure("Variable " + name + " is already declared in this scope");
         }
-        _scopes.front().emplace(name, type);
+        std::string uniqueName = type->is<FunctionType>()
+                                 ? (_reserved.count(name)
+                                    ? name
+                                    : "func_" + std::to_string(_functionId++)
+                                 )
+                                 : "var_" + std::to_string(_variableId++);
+        identifier->setUniqueName(uniqueName);
+        _scopes.front().emplace(name, std::make_pair(uniqueName, type));
         return AnalyzeResult::success();
     }
 
-    AnalyzeResult SemanticAnalyzer::assign(const std::string &name, size_t indexes, const std::shared_ptr<Type> &type) {
-        auto declaredType = getType(name);
+    AnalyzeResult SemanticAnalyzer::assign(const std::shared_ptr<NodeIdentifier> &identifier, size_t indexes,
+                                           const std::shared_ptr<DataType> &type) {
+        auto name = identifier->getName();
+        auto result = searchScope(name);
+        auto declaredType = result.second;
         if (declaredType == nullptr) {
             return AnalyzeResult::failure("Variable " + name + " is not declared");
         }
+        identifier->setUniqueName(result.first);
         auto leftType = declaredType->at((int) indexes)->as<ScalarType>();
         if (leftType == nullptr) {
             return AnalyzeResult::failure("Left value must be a scalar");
         }
         if (!leftType->isAssignableFrom(type)) {
-            return AnalyzeResult::failure("Type mismatch in assignment");
+            return AnalyzeResult::failure("DataType mismatch in assignment");
         }
         return AnalyzeResult::success();
     }
 
-    AnalyzeResult SemanticAnalyzer::call(const std::string &name, const std::vector<std::shared_ptr<Type>> &args) {
-        auto tmp = getType(name);
+    AnalyzeResult SemanticAnalyzer::call(const std::shared_ptr<NodeIdentifier> &identifier,
+                                         const std::vector<std::shared_ptr<DataType>> &args) {
+        auto name = identifier->getName();
+        auto searchResult = searchScope(name);
+        auto tmp = searchResult.second;
         if (tmp == nullptr) {
-            return AnalyzeResult::failure("Function " + name + " is not declared");
+            return AnalyzeResult::failure("IRFunction " + name + " is not declared");
         }
+        identifier->setUniqueName(searchResult.first);
         auto declaredType = tmp->as<FunctionType>();
         if (declaredType == nullptr) {
             return AnalyzeResult::failure(name + " is not a function");
         }
-        auto declaredArgs = declaredType->getArgs();
+        auto declaredArgs = declaredType->getParams();
         if (args.size() != declaredArgs.size()) {
             return AnalyzeResult::failure("Argument count mismatch");
         }
@@ -350,6 +375,6 @@ namespace coy {
                 return AnalyzeResult::failure("Argument type mismatch");
             }
         }
-        return AnalyzeResult::success();
+        return AnalyzeResult::success(declaredType->getReturnType());
     }
 }
