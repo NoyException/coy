@@ -1,95 +1,31 @@
-fn %func_0(%var_0: i32*, %var_1: i32) -> i32 {
-%Lfunc_0_START:
-let %0 = alloca i32*, 1
-let %1 = store %var_0, %0
-let %2 = alloca i32, 1
-let %3 = store %var_1, %2
-let %4 = alloca i32, 1
-let %5 = alloca i32, 1
-let %6 = store 0, %5
-let %7 = alloca i32, 1
-let %8 = store 0, %7
-let %9 = alloca i32, 1
-let %10 = store 0, %9
-let %11 = load %5
-let %12 = load %2
-let %13 = lt %11, %12
-br %13, label %LWHILE_BODY_0, label %LWHILE_NEXT_1
-%LWHILE_BODY_0:
-let %14 = store 0, %7
-let %15 = load %7
-let %16 = lt %15, 10
-br %16, label %LWHILE_BODY_2, label %LWHILE_NEXT_3
-%LWHILE_BODY_2:
-let %17 = load %9
-let %18 = load %5
-let %19 = load %7
-let %20 = load %0
-let %21 = offset i32, %20, [%18 < none], [%19 < 10]
-let %22 = load %21
-let %23 = add %17, %22
-let %24 = store %23, %9
-let %25 = load %7
-let %26 = add %25, 1
-let %27 = store %26, %7
-let %28 = load %7
-let %29 = lt %28, 10
-br %29, label %LWHILE_BODY_2, label %LWHILE_NEXT_3
-%LWHILE_NEXT_3:
-let %30 = load %5
-let %31 = add %30, 1
-let %32 = store %31, %5
-let %33 = load %5
-let %34 = load %2
-let %35 = lt %33, %34
-br %35, label %LWHILE_BODY_0, label %LWHILE_NEXT_1
-%LWHILE_NEXT_1:
-let %36 = load %9
-let %37 = store %36, %4
-jmp label %Lfunc_0_RETURN
-%Lfunc_0_RETURN:
-let %38 = load %4
-ret %38
-}
 fn %main() -> () {
 %Lmain_START:
-let %39 = alloca i32, 50
-let %40 = alloca i32, 1
-let %41 = store 0, %40
-let %42 = alloca i32, 1
-let %43 = store 0, %42
-let %44 = load %40
-let %45 = lt %44, 5
-br %45, label %LWHILE_BODY_4, label %LWHILE_NEXT_5
-%LWHILE_BODY_4:
-let %46 = store 0, %42
-let %47 = load %42
-let %48 = lt %47, 10
-br %48, label %LWHILE_BODY_6, label %LWHILE_NEXT_7
-%LWHILE_BODY_6:
-let %49 = load %40
-let %50 = load %42
-let %51 = offset i32, %39, [%49 < 5], [%50 < 10]
-let %52 = store 1, %51
-let %53 = load %42
-let %54 = add %53, 1
-let %55 = store %54, %42
-let %56 = load %42
-let %57 = lt %56, 10
-br %57, label %LWHILE_BODY_6, label %LWHILE_NEXT_7
-%LWHILE_NEXT_7:
-let %58 = load %40
-let %59 = add %58, 1
-let %60 = store %59, %40
-let %61 = load %40
-let %62 = lt %61, 5
-br %62, label %LWHILE_BODY_4, label %LWHILE_NEXT_5
-%LWHILE_NEXT_5:
-let %63 = alloca i32, 1
-let %64 = call %func_0, %39, 4
-let %65 = store %64, %63
-let %66 = load %63
-let %67 = call %putint, %66
+let %0 = alloca i32, 1
+let %1 = sub 0, 1
+let %2 = store %1, %0
+let %3 = load %0
+let %4 = eq %3, 1
+br %4, label %LIF_TRUE_0, label %LIF_FALSE_1
+%LIF_TRUE_0:
+let %5 = store 1, %0
+let %6 = load %0
+let %7 = sub 0, 1
+let %8 = eq %6, %7
+br %8, label %LIF_TRUE_3, label %LIF_FALSE_4
+%LIF_TRUE_3:
+let %9 = store 2, %0
+jmp label %LIF_EXIT_5
+%LIF_FALSE_4:
+let %10 = store 3, %0
+jmp label %LIF_EXIT_5
+%LIF_EXIT_5:
+jmp label %LIF_EXIT_2
+%LIF_FALSE_1:
+let %11 = store 4, %0
+jmp label %LIF_EXIT_2
+%LIF_EXIT_2:
+let %12 = load %0
+let %13 = call %putint, %12
 jmp label %Lmain_RETURN
 %Lmain_RETURN:
 ret ()

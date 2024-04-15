@@ -267,7 +267,7 @@ namespace coy {
                 if (type == nullptr) {
                     return AnalyzeResult::failure("Unknown type of expression", node);
                 }
-                return AnalyzeResult::success();
+                return AnalyzeResult::success(type);
             }
             case NodeType::BINARY_OPERATOR: {
                 auto binaryOperator = node->as<NodeBinaryOperator>();

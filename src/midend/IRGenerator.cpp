@@ -188,7 +188,6 @@ namespace coy {
             currentBlock->addInstruction(jump);
             return currentBlock;
         } else if (auto ifStatement = statement->as<NodeIf>()) {
-            auto condition = translateExpression(ifStatement->getCondition(), currentBlock);
             auto trueBlock = std::make_shared<IRCodeBlock>(
                     std::make_shared<Label>("IF_TRUE_" + std::to_string(_labelId++)));
             auto falseBlock = std::make_shared<IRCodeBlock>(
@@ -196,23 +195,25 @@ namespace coy {
             auto exitBlock = std::make_shared<IRCodeBlock>(
                     std::make_shared<Label>("IF_EXIT_" + std::to_string(_labelId++)));
 
-            blocks.push_back(trueBlock);
-            generateBlocks(ifStatement->getThen(), trueBlock, blocks);
-            if (!isLastInstructionTerminator(trueBlock))
-                blocks.back()->addInstruction(std::make_shared<JumpInstruction>(exitBlock));
-            blocks.push_back(falseBlock);
-            generateBlocks(ifStatement->getElse(), falseBlock, blocks);
-            blocks.push_back(exitBlock);
-
+            auto condition = translateExpression(ifStatement->getCondition(), currentBlock);
             auto result = std::make_shared<BranchInstruction>(
                     condition, trueBlock, falseBlock);
             currentBlock->addInstruction(result);
+            blocks.push_back(trueBlock);
+            generateBlocks(ifStatement->getThen(), trueBlock, blocks);
+            if (!isLastInstructionTerminator(blocks.back()))
+                blocks.back()->addInstruction(std::make_shared<JumpInstruction>(exitBlock));
+            blocks.push_back(falseBlock);
+            generateBlocks(ifStatement->getElse(), falseBlock, blocks);
+            if (!isLastInstructionTerminator(blocks.back()))
+                blocks.back()->addInstruction(std::make_shared<JumpInstruction>(exitBlock));
+            blocks.push_back(exitBlock);
+
             return exitBlock;
         } else if (auto whileStatement = statement->as<NodeWhile>()) {
             auto oldBreakBlock = _breakBlock;
             auto oldContinueBlock = _continueBlock;
 
-            auto condition = translateExpression(whileStatement->getCondition(), currentBlock);
             auto bodyBlock = std::make_shared<IRCodeBlock>(
                     std::make_shared<Label>("WHILE_BODY_" + std::to_string(_labelId++)));
             auto nextBlock = std::make_shared<IRCodeBlock>(
@@ -221,6 +222,7 @@ namespace coy {
             _breakBlock = nextBlock;
             _continueBlock = bodyBlock;
 
+            auto condition = translateExpression(whileStatement->getCondition(), currentBlock);
             currentBlock->addInstruction(std::make_shared<BranchInstruction>(condition, bodyBlock, nextBlock));
             blocks.push_back(bodyBlock);
             generateBlocks(whileStatement->getBody(), bodyBlock, blocks);
