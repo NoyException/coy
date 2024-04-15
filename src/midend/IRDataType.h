@@ -15,6 +15,10 @@ namespace coy {
     public:
         virtual ~IRDataType() = default;
 
+        [[nodiscard]] virtual int maxDimension() const {
+            return 0;
+        }
+
         [[nodiscard]] virtual std::string toString() const = 0;
     };
 
@@ -48,6 +52,10 @@ namespace coy {
             return _dimensions;
         }
 
+        [[nodiscard]] int maxDimension() const override {
+            return _dimensions.size();
+        }
+
         [[nodiscard]] std::string toString() const override {
             return _elementType->toString() + "*";
         }
@@ -61,6 +69,10 @@ namespace coy {
 
         [[nodiscard]] const std::shared_ptr<IRDataType> &getPointedType() const {
             return _pointedType;
+        }
+
+        [[nodiscard]] int maxDimension() const override {
+            return 1+(_pointedType->maxDimension());
         }
 
         [[nodiscard]] std::string toString() const override {

@@ -343,9 +343,9 @@ namespace coy {
             return AnalyzeResult::failure("Variable " + name + " is not declared");
         }
         identifier->setUniqueName(result.first);
-        auto leftType = declaredType->at((int) indexes)->as<ScalarType>();
-        if (leftType == nullptr) {
-            return AnalyzeResult::failure("Left value must be a scalar");
+        auto leftType = declaredType->at((int) indexes);
+        if (leftType->as<ScalarType>() == nullptr && leftType->as<PointerType>() == nullptr) {
+            return AnalyzeResult::failure("Left value must be a scalar or a pointer");
         }
         if (!leftType->isAssignableFrom(type)) {
             return AnalyzeResult::failure("DataType mismatch in assignment");

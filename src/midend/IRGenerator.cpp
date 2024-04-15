@@ -74,15 +74,22 @@ namespace coy {
             auto type = translateDataType(item->getDataType());
             auto paramUniqueName = item->getIdentifier()->getUniqueName();
             auto param = std::make_shared<Parameter>(paramUniqueName, type);
-            auto paramAddr = std::make_shared<AllocateInstruction>(type);
-            startBlock->addInstruction(paramAddr);
-            auto store = std::make_shared<StoreInstruction>(
-                    std::make_shared<Expression>(paramAddr),
-                    std::make_shared<Expression>(param));
-            startBlock->addInstruction(store);
-            auto expression = std::make_shared<Expression>(paramAddr);
+            // 如果不是数组或指针，需要分配内存
+//            if (type->maxDimension()==0){
+                auto paramAddr = std::make_shared<AllocateInstruction>(type);
+                startBlock->addInstruction(paramAddr);
+                auto store = std::make_shared<StoreInstruction>(
+                        std::make_shared<Expression>(paramAddr),
+                        std::make_shared<Expression>(param));
+                startBlock->addInstruction(store);
+                auto expression = std::make_shared<Expression>(paramAddr);
+                _expressions[paramUniqueName] = expression;
+//            }
+//            else{
+//                auto expression = std::make_shared<Expression>(param);
+//                _expressions[paramUniqueName] = expression;
+//            }
             _typeTable[paramUniqueName] = type;
-            _expressions[paramUniqueName] = expression;
             parameters.push_back(param);
         }
 
@@ -217,8 +224,11 @@ namespace coy {
             currentBlock->addInstruction(std::make_shared<BranchInstruction>(condition, bodyBlock, nextBlock));
             blocks.push_back(bodyBlock);
             generateBlocks(whileStatement->getBody(), bodyBlock, blocks);
-            if (!isLastInstructionTerminator(blocks.back()))
+            if (!isLastInstructionTerminator(blocks.back())){
+                // 重复翻译condition是为了再load一遍需要比较的值，以免使用过时的值
+                condition = translateExpression(whileStatement->getCondition(), blocks.back());
                 blocks.back()->addInstruction(std::make_shared<BranchInstruction>(condition, bodyBlock, nextBlock));
+            }
             blocks.push_back(nextBlock);
 
             _breakBlock = oldBreakBlock;
@@ -283,7 +293,6 @@ namespace coy {
             if (address == _expressions.end()) {
                 throw std::runtime_error("Undefined symbol: " + identifier->getName());
             }
-            identifier->setUniqueName(address->first);
             auto result = std::make_shared<LoadInstruction>(address->second);
             currentBlock->addInstruction(result);
             return std::make_shared<Expression>(result);
@@ -302,6 +311,9 @@ namespace coy {
             return std::make_shared<Expression>(result);
         } else if (auto leftValue = expression->as<NodeLeftValue>()) {
             auto addr = translateLeftValue(leftValue, currentBlock);
+            auto type = _typeTable[leftValue->getIdentifier()->getUniqueName()];
+            if (leftValue->getIndexes().size()<type->maxDimension())
+                return addr;
             auto load = std::make_shared<LoadInstruction>(addr);
             currentBlock->addInstruction(load);
             return std::make_shared<Expression>(load);
@@ -312,13 +324,13 @@ namespace coy {
 
     std::shared_ptr<Expression> IRGenerator::translateLeftValue(const std::shared_ptr<NodeLeftValue> &leftValue,
                                                                 const std::shared_ptr<IRCodeBlock> &currentBlock) {
-        auto address = _expressions.find(leftValue->getIdentifier()->getUniqueName());
-        if (address == _expressions.end()) {
+        auto addressIt = _expressions.find(leftValue->getIdentifier()->getUniqueName());
+        if (addressIt == _expressions.end()) {
             throw std::runtime_error("Undefined symbol: " + leftValue->getIdentifier()->getName());
         }
-        leftValue->getIdentifier()->setUniqueName(address->first);
+        auto address = addressIt->second;
         if (leftValue->getIndexes().empty()) {
-            return address->second;
+            return address;
         }
         auto indexes = leftValue->getIndexes();
         std::vector<std::shared_ptr<Expression>> translatedIndexes;
@@ -335,6 +347,9 @@ namespace coy {
         if (auto pointer = std::dynamic_pointer_cast<IRPointerType>(type)) {
             dimensions.emplace_back(-1);
             type = pointer->getPointedType();
+            auto load = std::make_shared<LoadInstruction>(address);
+            currentBlock->addInstruction(load);
+            address = std::make_shared<Expression>(load);
         }
         if (auto array = std::dynamic_pointer_cast<IRArrayType>(type)) {
             dimensions.insert(dimensions.end(), array->getDimensions().begin(),
@@ -342,7 +357,7 @@ namespace coy {
             type = array->getElementType();
         }
         auto offset = std::make_shared<OffsetInstruction>(
-                type, address->second, translatedIndexes, dimensions);
+                type, address, translatedIndexes, dimensions);
         currentBlock->addInstruction(offset);
         return std::make_shared<Expression>(offset);
     }

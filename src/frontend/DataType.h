@@ -167,7 +167,7 @@ namespace coy {
 
         [[nodiscard]] std::shared_ptr<DataType> at(int indexes) override {
             if (indexes == 0) {
-                return _base;
+                return shared_from_this();
             }
             return _base->at(indexes - 1);
         }
