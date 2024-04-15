@@ -126,27 +126,27 @@ namespace coy {
 
     const std::shared_ptr<Parser<Token, Token>> CoyParsers::RIGHT_BRACE = generateSeparator("}");
 
-    //term = number | left_value | identifier(function_arguments) | paren_expr
-    const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> CoyParsers::TERM = Parsers::lazy<Token, std::shared_ptr<NodeTyped>>();
+    //factor = number | left_value | identifier(function_arguments) | paren_expr
+    const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> CoyParsers::FACTOR = Parsers::lazy<Token, std::shared_ptr<NodeTyped>>();
 
-    //signed_term = ('+' | '-' | '!') signed_term | term
-    const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> CoyParsers::SIGNED_TERM =
+    //signed_factor = ('+' | '-' | '!') signed_term | factor
+    const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> CoyParsers::SIGNED_FACTOR =
             UNARY_OPERATOR->bind<std::shared_ptr<NodeTyped>>(
                     [](const Token &token) {
                         if (token.value == "+")
-                            return SIGNED_TERM;
+                            return SIGNED_FACTOR;
                         else
-                            return SIGNED_TERM->map<std::shared_ptr<NodeTyped>>(
+                            return SIGNED_FACTOR->map<std::shared_ptr<NodeTyped>>(
                                     [token](const std::shared_ptr<NodeTyped> &node) {
                                         return std::make_shared<NodeUnaryOperator>(token, token.value, node);
                                     }
                             );
                     }
-            )->orElse(CoyParsers::TERM);
+            )->orElse(CoyParsers::FACTOR);
 
-    //product = term (MUL_DIV_MOD term)*
+    //product = signed_factor (MUL_DIV_MOD signed_factor)*
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> CoyParsers::PRODUCT =
-            SIGNED_TERM->chainLeft(MUL_DIV_MOD);
+            SIGNED_FACTOR->chainLeft(MUL_DIV_MOD);
 
     //sum = product (ADD_SUB product)*
     const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> CoyParsers::SUM =
@@ -455,8 +455,8 @@ namespace coy {
             PROGRAM->as<std::shared_ptr<Node>>()->skip(Parsers::end<Token, std::shared_ptr<Node>>());
 
     const int CoyParsers::initializer = []() {
-        //term = number | function_call | left_value | paren_expr
-        (*TERM) = *Parsers::any({
+        //factor = number | function_call | left_value | paren_expr
+        (*FACTOR) = *Parsers::any({
                                         NUMBER,
                                         FUNCTION_CALL->as<std::shared_ptr<NodeTyped>>(),
                                         LEFT_VALUE->as<std::shared_ptr<NodeTyped>>(),

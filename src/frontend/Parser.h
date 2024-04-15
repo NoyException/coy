@@ -844,8 +844,8 @@ namespace coy {
         static const std::shared_ptr<Parser<Token, Token>> RIGHT_SQUARE_BRACKET;
         static const std::shared_ptr<Parser<Token, Token>> LEFT_BRACE;
         static const std::shared_ptr<Parser<Token, Token>> RIGHT_BRACE;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> TERM;
-        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> SIGNED_TERM;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> FACTOR;
+        static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> SIGNED_FACTOR;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> PRODUCT;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> SUM;
         static const std::shared_ptr<Parser<Token, std::shared_ptr<NodeTyped>>> INEQUALITY;

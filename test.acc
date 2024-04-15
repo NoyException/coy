@@ -3,29 +3,27 @@ fn %main() -> () {
 let %0 = alloca i32, 1
 let %1 = sub 0, 1
 let %2 = store %1, %0
-let %3 = load %0
-let %4 = eq %3, 1
-br %4, label %LIF_TRUE_0, label %LIF_FALSE_1
+br 1, label %LIF_TRUE_0, label %LIF_FALSE_1
 %LIF_TRUE_0:
-let %5 = store 1, %0
-let %6 = load %0
-let %7 = sub 0, 1
-let %8 = eq %6, %7
-br %8, label %LIF_TRUE_3, label %LIF_FALSE_4
+let %3 = store 1, %0
+let %4 = load %0
+let %5 = sub 0, 1
+let %6 = eq %4, %5
+br %6, label %LIF_TRUE_3, label %LIF_FALSE_4
 %LIF_TRUE_3:
-let %9 = store 2, %0
+let %7 = store 2, %0
 jmp label %LIF_EXIT_5
 %LIF_FALSE_4:
-let %10 = store 3, %0
+let %8 = store 3, %0
 jmp label %LIF_EXIT_5
 %LIF_EXIT_5:
 jmp label %LIF_EXIT_2
 %LIF_FALSE_1:
-let %11 = store 4, %0
+let %9 = store 4, %0
 jmp label %LIF_EXIT_2
 %LIF_EXIT_2:
-let %12 = load %0
-let %13 = call %putint, %12
+let %10 = load %0
+let %11 = call %putint, %10
 jmp label %Lmain_RETURN
 %Lmain_RETURN:
 ret ()
