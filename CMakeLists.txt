@@ -27,9 +27,11 @@ add_executable(coy src/main.cpp
         src/midend/IRDataType.cpp
         src/midend/IRDataType.h
         src/midend/IRPrinter.cpp
-        src/midend/IRPrinter.h)
+        src/midend/IRPrinter.h
+        src/Compiler.cpp
+        src/Compiler.h)
 
-add_executable(test src/test.cpp
+add_executable(test
         src/frontend/Lexer.cpp
         src/frontend/Lexer.h
         src/frontend/Token.cpp
