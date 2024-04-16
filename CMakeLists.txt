@@ -30,13 +30,3 @@ add_executable(coy src/main.cpp
         src/midend/IRPrinter.h
         src/Compiler.cpp
         src/Compiler.h)
-
-add_executable(test
-        src/frontend/Lexer.cpp
-        src/frontend/Lexer.h
-        src/frontend/Token.cpp
-        src/frontend/Token.h
-        src/frontend/Node.cpp
-        src/frontend/Node.h
-        src/frontend/Parser.cpp
-        src/frontend/Parser.h)
