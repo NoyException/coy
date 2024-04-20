@@ -267,6 +267,9 @@ namespace coy {
                 if (type == nullptr) {
                     return AnalyzeResult::failure("Unknown type of expression", node);
                 }
+                if (!type->canOperate(unaryOperator->getOperator())) {
+                    return AnalyzeResult::failure("Invalid unary operator", node);
+                }
                 return AnalyzeResult::success(type);
             }
             case NodeType::BINARY_OPERATOR: {
@@ -287,10 +290,13 @@ namespace coy {
                 if (rightType == nullptr) {
                     return AnalyzeResult::failure("Unknown type of right operand", node);
                 }
-                if (leftType->isAssignableFrom(rightType))
+                if (leftType->isAssignableFrom(rightType) && leftType->canOperate(binaryOperator->getOperator()))
                     return AnalyzeResult::success(leftType);
-                if (rightType->isAssignableFrom(leftType))
+                if (rightType->isAssignableFrom(leftType) && rightType->canOperate(binaryOperator->getOperator()))
                     return AnalyzeResult::success(rightType);
+                if (leftType->isAssignableFrom(rightType) || rightType->isAssignableFrom(leftType))
+                    return AnalyzeResult::failure("The binary operator " + binaryOperator->getOperator() +
+                                                  " is not supported by the operands", node);
                 return AnalyzeResult::failure("DataType mismatch in binary operator", node);
             }
             case NodeType::BREAK:

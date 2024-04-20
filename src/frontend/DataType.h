@@ -46,6 +46,10 @@ namespace coy {
         [[nodiscard]] bool operator!=(const DataType &other) const {
             return toString() != other.toString();
         }
+
+        [[nodiscard]] virtual bool canOperate(const std::string &op) const {
+            return false;
+        }
     };
 
     class ScalarType : public DataType {
@@ -86,6 +90,13 @@ namespace coy {
         [[nodiscard]] std::string toString() const override {
             return _name;
         }
+        
+        [[nodiscard]] bool canOperate(const std::string &op) const override {
+            return isNumeric() && (op == "+" || op == "-" || op == "*" || op == "/" || op == "%"
+            || op == "==" || op == "!=" || op == "<" || op == ">" || op == "<=" || op == ">="
+            || op == "&&" || op == "||" || op == "!" || op == "&" || op == "|" || op == "^" || op == "~"
+            || op == "<<" || op == ">>");
+        }
     };
 
     class ArrayType : public DataType {
@@ -115,6 +126,10 @@ namespace coy {
 
         [[nodiscard]] std::string toString() const override {
             return _base->toString() + "[" + std::to_string(_dimension) + "]";
+        }
+        
+        [[nodiscard]] bool canOperate(const std::string &op) const override {
+            return op == "[]" || op == "=";
         }
     };
 
@@ -148,6 +163,10 @@ namespace coy {
             str += ")";
             return str;
         }
+        
+        [[nodiscard]] bool canOperate(const std::string &op) const override {
+            return op == "()";
+        }
     };
 
     class PointerType : public DataType {
@@ -174,6 +193,10 @@ namespace coy {
 
         [[nodiscard]] std::string toString() const override {
             return _base->toString() + "*";
+        }
+        
+        [[nodiscard]] bool canOperate(const std::string &op) const override {
+            return op == "*" || op == "+" || op == "-" || op == "[]" || op == "=";
         }
     };
 
