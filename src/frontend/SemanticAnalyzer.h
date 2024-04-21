@@ -49,7 +49,9 @@ namespace coy {
 
     class SemanticAnalyzer {
     private:
-        std::deque<std::unordered_map<std::string, std::pair<std::string, std::shared_ptr<DataType>>>> _scopes;
+        using Scopes = std::deque<std::unordered_map<std::string, std::pair<std::string, std::shared_ptr<DataType>>>>;
+        Scopes _variableScopes;
+        Scopes _functionScopes;
         std::shared_ptr<ScalarType> _returnType;
         std::unordered_set<std::string> _reserved;
         int _functionId = 0;
@@ -63,7 +65,7 @@ namespace coy {
 
         bool isDeclared(const std::string &name);
 
-        std::pair<std::string, std::shared_ptr<DataType>> searchScope(const std::string &name);
+        std::pair<std::string, std::shared_ptr<DataType>> searchScope(bool isFunction, const std::string &name);
 
         AnalyzeResult declare(const std::shared_ptr<NodeIdentifier> &identifier, const std::shared_ptr<DataType> &type);
 

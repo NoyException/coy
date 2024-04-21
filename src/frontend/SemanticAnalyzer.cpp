@@ -20,7 +20,8 @@ namespace coy {
     }
 
     SemanticAnalyzer::SemanticAnalyzer() {
-        _scopes.emplace_back();
+        _variableScopes.emplace_back();
+        _functionScopes.emplace_back();
     }
 
     void SemanticAnalyzer::addReserved(const std::string &name) {
@@ -40,7 +41,8 @@ namespace coy {
                 return AnalyzeResult::success();
             }
             case NodeType::BLOCK: {
-                _scopes.emplace_front();
+                _variableScopes.emplace_front();
+                _functionScopes.emplace_front();
                 auto block = node->as<NodeBlock>();
                 for (const auto &statement: block->getStatements()) {
                     auto result = analyze(statement);
@@ -48,7 +50,8 @@ namespace coy {
                         return result;
                     }
                 }
-                _scopes.pop_front();
+                _functionScopes.pop_front();
+                _variableScopes.pop_front();
                 return AnalyzeResult::success();
             }
             case NodeType::FUNCTION: {
@@ -77,7 +80,8 @@ namespace coy {
                     return result;
                 }
                 // 将函数参数的声明加入到函数作用域
-                _scopes.emplace_front();
+                _variableScopes.emplace_front();
+                _functionScopes.emplace_front();
                 for (int i = 0; i < params.size(); ++i) {
                     result = declare(params[i]->getIdentifier(), paramTypes[i]).attach(node);
                     if (!result.isSuccess()) {
@@ -92,7 +96,8 @@ namespace coy {
                         return result;
                     }
                 }
-                _scopes.pop_front();
+                _functionScopes.pop_front();
+                _variableScopes.pop_front();
                 _returnType = nullptr;
                 return result;
             }
@@ -230,7 +235,7 @@ namespace coy {
                 auto leftValue = node->as<NodeLeftValue>();
                 auto name = leftValue->getIdentifier()->getName();
                 auto indexes = leftValue->getIndexes();
-                auto searchResult = searchScope(name);
+                auto searchResult = searchScope(false, name);
                 auto type = searchResult.second->at((int) indexes.size());
                 if (type == nullptr) {
                     return AnalyzeResult::failure("Unknown type of left value", node);
@@ -308,13 +313,15 @@ namespace coy {
     }
 
     bool SemanticAnalyzer::isDeclared(const std::string &name) {
-        return std::any_of(_scopes.begin(), _scopes.end(), [&name](const auto &scope) {
+        return std::any_of(_variableScopes.begin(), _variableScopes.end(), [&name](const auto &scope) {
             return scope.find(name) != scope.end();
         });
     }
 
-    std::pair<std::string, std::shared_ptr<DataType>> SemanticAnalyzer::searchScope(const std::string &name) {
-        for (const auto &scope: _scopes) {
+    std::pair<std::string, std::shared_ptr<DataType>> SemanticAnalyzer::searchScope(
+            bool isFunction, const std::string &name) {
+        Scopes& scopes = isFunction ? _functionScopes : _variableScopes;
+        for (const auto &scope: scopes) {
             auto it = scope.find(name);
             if (it != scope.end()) {
                 return it->second;
@@ -326,24 +333,35 @@ namespace coy {
     AnalyzeResult SemanticAnalyzer::declare(const std::shared_ptr<NodeIdentifier> &identifier,
                                             const std::shared_ptr<DataType> &type) {
         auto name = identifier->getName();
-        if (_scopes.front().count(name)) {
-            return AnalyzeResult::failure("Variable " + name + " is already declared in this scope");
+        bool isFunction = type->is<FunctionType>();
+        if (isFunction){
+            if (_functionScopes.front().count(name)) {
+                return AnalyzeResult::failure("Function " + name + " is already declared in this scope");
+            }
         }
-        std::string uniqueName = type->is<FunctionType>()
+        else{
+            if (_variableScopes.front().count(name)) {
+                return AnalyzeResult::failure("Variable " + name + " is already declared in this scope");
+            }
+        }
+        std::string uniqueName = isFunction
                                  ? (_reserved.count(name)
                                     ? name
                                     : "func_" + std::to_string(_functionId++)
                                  )
                                  : "var_" + std::to_string(_variableId++);
         identifier->setUniqueName(uniqueName);
-        _scopes.front().emplace(name, std::make_pair(uniqueName, type));
+        if (isFunction)
+            _functionScopes.front().emplace(name, std::make_pair(uniqueName, type));
+        else
+            _variableScopes.front().emplace(name, std::make_pair(uniqueName, type));
         return AnalyzeResult::success();
     }
 
     AnalyzeResult SemanticAnalyzer::assign(const std::shared_ptr<NodeIdentifier> &identifier, size_t indexes,
                                            const std::shared_ptr<DataType> &type) {
         auto name = identifier->getName();
-        auto result = searchScope(name);
+        auto result = searchScope(false, name);
         auto declaredType = result.second;
         if (declaredType == nullptr) {
             return AnalyzeResult::failure("Variable " + name + " is not declared");
@@ -362,7 +380,7 @@ namespace coy {
     AnalyzeResult SemanticAnalyzer::call(const std::shared_ptr<NodeIdentifier> &identifier,
                                          const std::vector<std::shared_ptr<DataType>> &args) {
         auto name = identifier->getName();
-        auto searchResult = searchScope(name);
+        auto searchResult = searchScope(true, name);
         auto tmp = searchResult.second;
         if (tmp == nullptr) {
             return AnalyzeResult::failure("IRFunction " + name + " is not declared");
