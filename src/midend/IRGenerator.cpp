@@ -296,9 +296,9 @@ namespace coy {
                 auto result2 = rhs.second;
                 auto store2 = std::make_shared<StoreInstruction>(
                         std::make_shared<Expression>(alloca),result2);
-                nonShortCircuit->addInstruction(store2);
+                currentBlock->addInstruction(store2);
                 auto exit2 = std::make_shared<JumpInstruction>(exitBlock);
-                nonShortCircuit->addInstruction(exit2);
+                currentBlock->addInstruction(exit2);
                 
                 blocks.push_back(exitBlock);
                 auto load = std::make_shared<LoadInstruction>(
