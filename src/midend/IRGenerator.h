@@ -31,34 +31,42 @@ namespace coy {
 
         std::shared_ptr<IRCodeBlock> translateStatement(
                 const std::shared_ptr<Node> &statement,
-                const std::shared_ptr<IRCodeBlock> &currentBlock,
+                std::shared_ptr<IRCodeBlock> currentBlock,
                 std::deque<std::shared_ptr<IRCodeBlock>> &blocks);
         
-        std::shared_ptr<Expression> translateExpression(
+        std::pair<std::shared_ptr<IRCodeBlock>, std::shared_ptr<Expression>> translateExpression(
                 const std::shared_ptr<Node> &expression,
-                const std::shared_ptr<IRCodeBlock> &currentBlock);
+                std::shared_ptr<IRCodeBlock> currentBlock,
+                std::deque<std::shared_ptr<IRCodeBlock>> &blocks);
 
         std::shared_ptr<Expression> translateLeftValue(
                 const std::shared_ptr<NodeLeftValue> &leftValue,
-                const std::shared_ptr<IRCodeBlock> &currentBlock);
+                std::shared_ptr<IRCodeBlock> currentBlock,
+                std::deque<std::shared_ptr<IRCodeBlock>> &blocks);
         
         bool isLastInstructionTerminator(const std::shared_ptr<IRCodeBlock> &block);
+
+        std::shared_ptr<IRDataType> translateDataType(const std::shared_ptr<DataType> &dataType);
+        
+        std::shared_ptr<IRFunction> generateFunction(const std::shared_ptr<NodeFunction> &function);
+
+        void generateBlocks(const std::shared_ptr<Node> &node, const std::shared_ptr<IRCodeBlock> &currentBlock,
+                            std::deque<std::shared_ptr<IRCodeBlock>> &blocks);
+
+        std::shared_ptr<IRGlobalVariable>
+        generateGlobalVariable(const std::shared_ptr<NodeDefinition> &definition);
 
     public:
         
         void registerFunction(const std::shared_ptr<IRFunction>& function);
 
-        std::shared_ptr<IRDataType> translateDataType(const std::shared_ptr<DataType> &dataType);
-
         std::shared_ptr<IRModule> generate(const std::shared_ptr<NodeProgram> &program);
 
-        std::shared_ptr<IRFunction> generateFunction(const std::shared_ptr<NodeFunction> &function);
-
-        void generateBlocks(const std::shared_ptr<Node> &node, const std::shared_ptr<IRCodeBlock> &currentBlock,
-                       std::deque<std::shared_ptr<IRCodeBlock>> &blocks);
-
-        std::shared_ptr<IRGlobalVariable>
-        generateGlobalVariable(const std::shared_ptr<NodeDefinition> &definition);
+        
+//        void shortCircuit(const std::shared_ptr<IRCodeBlock> &currentBlock,
+//                          const std::shared_ptr<Expression> &expression,
+//                          const std::shared_ptr<IRCodeBlock> &trueBlock,
+//                          const std::shared_ptr<IRCodeBlock> &falseBlock);
 
     };
 }
