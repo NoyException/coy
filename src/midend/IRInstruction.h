@@ -187,12 +187,12 @@ namespace coy {
         std::vector<std::shared_ptr<Expression>> _bounds;
     public:
         static constexpr InstructionType TYPE = InstructionType::ALLOCATE;
-        
+
         explicit AllocateInstruction(std::shared_ptr<IRDataType> dataType,
                                      int size = 1,
                                      InstructionType type = TYPE)
-                : MemoryInstruction(type), _dataType(std::move(dataType))
-                , _bounds({std::make_shared<Expression>(std::make_shared<Integer>(size))}) {}
+                : MemoryInstruction(type), _dataType(std::move(dataType)),
+                  _bounds({std::make_shared<Expression>(std::make_shared<Integer>(size))}) {}
 
         explicit AllocateInstruction(std::shared_ptr<IRDataType> dataType,
                                      std::vector<std::shared_ptr<Expression>> bounds,
@@ -345,6 +345,10 @@ namespace coy {
 
         explicit ReturnInstruction(std::shared_ptr<Expression> value, InstructionType type = TYPE)
                 : TerminatorInstruction(type), _value(std::move(value)) {}
+
+        [[nodiscard]] bool hasValue() const {
+            return _value != nullptr && _value != Expression::NONE;
+        }
 
         [[nodiscard]] std::shared_ptr<Expression> getValue() const {
             return _value;

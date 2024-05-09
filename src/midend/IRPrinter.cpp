@@ -124,10 +124,10 @@ namespace coy {
         } else if (auto jump = std::dynamic_pointer_cast<JumpInstruction>(instruction)) {
             output.push_back("jmp label " + jump->getTarget()->getLabel()->toString());
         } else if (auto returnInst = std::dynamic_pointer_cast<ReturnInstruction>(instruction)) {
-            if (returnInst->getValue() == nullptr)
-                output.emplace_back("ret none");
-            else
+            if (returnInst->hasValue())
                 output.push_back("ret " + translateExpression(returnInst->getValue()));
+            else
+                output.emplace_back("ret none");
         } else if (auto load = std::dynamic_pointer_cast<LoadInstruction>(instruction)) {
             output.push_back("let %" + load->getBoundName() + " = load " + translateExpression(load->getAddress()));
         } else if (auto store = std::dynamic_pointer_cast<StoreInstruction>(instruction)) {
