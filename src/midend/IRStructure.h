@@ -81,22 +81,17 @@ namespace coy {
     private:
         std::string _uniqueName;
         std::shared_ptr<IRDataType> _type;
-        int _size;
         
     public:
-        IRGlobalVariable(std::string uniqueName, std::shared_ptr<IRDataType> type, int size)
-        : _uniqueName(std::move(uniqueName)), _type(std::move(type)), _size(size) {}
+        IRGlobalVariable(std::string uniqueName, std::shared_ptr<IRDataType> type)
+        : _uniqueName(std::move(uniqueName)), _type(std::move(type)) {}
         
         [[nodiscard]] const std::string &getUniqueName() const {
             return _uniqueName;
         }
         
-        [[nodiscard]] const std::shared_ptr<IRDataType> &getType() const {
+        [[nodiscard]] const std::shared_ptr<IRDataType> &getDataType() const {
             return _type;
-        }
-        
-        [[nodiscard]] int getSize() const {
-            return _size;
         }
     };
     

@@ -95,10 +95,25 @@ namespace coy {
 
         explicit Expression(std::shared_ptr<IRGlobalVariable> value) : _value(std::move(value)) {}
 
-        static const std::shared_ptr<Expression> NONE;
-        static const std::shared_ptr<Expression> ZERO;
-        static const std::shared_ptr<Expression> ONE;
-        static const std::shared_ptr<Expression> MINUS_ONE;
+        static std::shared_ptr<Expression>& NONE() {
+            static std::shared_ptr<Expression> NONE = std::make_shared<Expression>(None::INSTANCE);
+            return NONE;
+        }
+        
+        static std::shared_ptr<Expression>& ZERO() {
+            static std::shared_ptr<Expression> ZERO = std::make_shared<Expression>(Integer::ZERO);
+            return ZERO;
+        }
+        
+        static std::shared_ptr<Expression>& ONE() {
+            static std::shared_ptr<Expression> ONE = std::make_shared<Expression>(Integer::ONE);
+            return ONE;
+        }
+        
+        static std::shared_ptr<Expression>& MINUS_ONE() {
+            static std::shared_ptr<Expression> MINUS_ONE = std::make_shared<Expression>(Integer::MINUS_ONE);
+            return MINUS_ONE;
+        }
 
         [[nodiscard]] bool isInstruction() const {
             return std::holds_alternative<std::shared_ptr<ValueBindingInstruction>>(_value);
@@ -347,7 +362,7 @@ namespace coy {
                 : TerminatorInstruction(type), _value(std::move(value)) {}
 
         [[nodiscard]] bool hasValue() const {
-            return _value != nullptr && _value != Expression::NONE;
+            return _value != nullptr && _value != Expression::NONE();
         }
 
         [[nodiscard]] std::shared_ptr<Expression> getValue() const {

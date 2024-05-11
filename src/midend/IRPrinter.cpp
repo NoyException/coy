@@ -16,7 +16,7 @@ namespace coy {
         } else if (op == "/") {
             return "div";
         } else if (op == "%") {
-            return "mod";
+            return "rem";
         } else if (op == "&&") {
             return "and";
         } else if (op == "||") {
@@ -42,7 +42,7 @@ namespace coy {
 
     std::string IRPrinter::translateExpression(const std::shared_ptr<Expression> &expression) {
         if (expression->isGlobalVariable()) {
-            return "%" + expression->getGlobalVariable()->getUniqueName();
+            return "@" + expression->getGlobalVariable()->getUniqueName();
         } else if (expression->isInstruction()) {
             return "%" + expression->getInstruction()->getBoundName();
         } else if (expression->isValue()) {
@@ -62,10 +62,10 @@ namespace coy {
     }
 
     void IRPrinter::print(const std::shared_ptr<IRFunction> &function, std::vector<std::string> &output) {
-        auto str = "fn %" + function->getUniqueName() + "(";
+        auto str = "fn @" + function->getUniqueName() + "(";
         auto parameters = function->getParameters();
         for (int i = 0; i < parameters.size(); i++) {
-            str += "%" + parameters[i]->getUniqueName() + ": ";
+            str += "#" + parameters[i]->getUniqueName() + ": ";
             str += parameters[i]->getDataType()->toString();
             if (i != parameters.size() - 1) {
                 str += ", ";
@@ -80,15 +80,16 @@ namespace coy {
     }
 
     void IRPrinter::print(const std::shared_ptr<IRGlobalVariable> &globalVariable, std::vector<std::string> &output) {
+        auto dataType = globalVariable->getDataType();
         int size = 1;
-        auto type = globalVariable->getType();
-        if (auto arrayType = std::dynamic_pointer_cast<IRArrayType>(type)) {
+        if (auto arrayType = std::dynamic_pointer_cast<IRArrayType>(dataType)) {
             for (const auto &item: arrayType->getDimensions()) {
                 size *= item;
             }
+            dataType = arrayType->getElementType();
         }
         output.push_back(
-                "%" + globalVariable->getUniqueName() + " : region " + globalVariable->getType()->toString() + ", " +
+                "@" + globalVariable->getUniqueName() + " : region " + dataType->toString() + ", " +
                 std::to_string(size));
     }
 
@@ -111,7 +112,7 @@ namespace coy {
                     + ", " + translateExpression(binaryOperator->getRight()));
         } else if (auto functionCall = std::dynamic_pointer_cast<FunctionCallInstruction>(instruction)) {
             auto str =
-                    "let %" + functionCall->getBoundName() + " = call %" + functionCall->getFunction()->getUniqueName();
+                    "let %" + functionCall->getBoundName() + " = call @" + functionCall->getFunction()->getUniqueName();
             for (const auto &item: functionCall->getArguments()) {
                 str += ", " + translateExpression(item);
             }
@@ -127,7 +128,7 @@ namespace coy {
             if (returnInst->hasValue())
                 output.push_back("ret " + translateExpression(returnInst->getValue()));
             else
-                output.emplace_back("ret none");
+                output.emplace_back("ret ()");
         } else if (auto load = std::dynamic_pointer_cast<LoadInstruction>(instruction)) {
             output.push_back("let %" + load->getBoundName() + " = load " + translateExpression(load->getAddress()));
         } else if (auto store = std::dynamic_pointer_cast<StoreInstruction>(instruction)) {
@@ -150,8 +151,11 @@ namespace coy {
                        + offset->getDataType()->toString() + ", " + translateExpression(offset->getAddress());
             auto indexes = offset->getIndexes();
             auto bounds = offset->getBounds();
-            for (int i = 0; i < indexes.size(); ++i) {
-                str += ", [" + translateExpression(indexes[i]) + " < ";
+            for (int i = 0; i < bounds.size(); ++i) {
+                if (i >= indexes.size())
+                    str += ", [0 < ";
+                else
+                    str += ", [" + translateExpression(indexes[i]) + " < ";
                 if (bounds[i] != -1) {
                     str += std::to_string(bounds[i]);
                 } else {

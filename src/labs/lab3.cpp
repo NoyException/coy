@@ -1,7 +1,7 @@
 ﻿#include <iostream>
 #include <fstream>
 
-#include "Compiler.h"
+#include "../Compiler.h"
 
 using namespace coy;
 

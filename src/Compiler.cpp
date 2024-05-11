@@ -6,7 +6,7 @@
 
 namespace coy {
     Compiler::Compiler(std::string content) : _content(std::move(content)) {}
-    
+
     bool Compiler::lex() {
         Lexer lexer(_content);
         _tokens = lexer.tokenize();
@@ -21,7 +21,7 @@ namespace coy {
     }
 
     bool Compiler::parse() {
-        if (!_tokens.has_value()){
+        if (!_tokens.has_value()) {
             _error = "Tokens not found, please run lex() first.";
             return false;
         }
@@ -38,7 +38,7 @@ namespace coy {
     }
 
     bool Compiler::semanticAnalyze() {
-        if (_ast == nullptr){
+        if (_ast == nullptr) {
             _error = "AST not found, please run parse() first.";
             return false;
         }
@@ -46,12 +46,22 @@ namespace coy {
         analyzer.addReserved("main");
         analyzer.addReserved("putint");
         analyzer.addReserved("getint");
+        analyzer.addReserved("putch");
+        analyzer.addReserved("getch");
         Token dummy;
         analyzer.declare(std::make_shared<NodeIdentifier>(dummy, "putint"),
                          std::make_shared<FunctionType>(
                                  std::make_shared<ScalarType>("void"),
                                  std::vector<std::shared_ptr<DataType>>{std::make_shared<ScalarType>("int")}));
         analyzer.declare(std::make_shared<NodeIdentifier>(dummy, "getint"),
+                         std::make_shared<FunctionType>(
+                                 std::make_shared<ScalarType>("int"),
+                                 std::vector<std::shared_ptr<DataType>>{}));
+        analyzer.declare(std::make_shared<NodeIdentifier>(dummy, "putch"),
+                         std::make_shared<FunctionType>(
+                                 std::make_shared<ScalarType>("void"),
+                                 std::vector<std::shared_ptr<DataType>>{std::make_shared<ScalarType>("int")}));
+        analyzer.declare(std::make_shared<NodeIdentifier>(dummy, "getch"),
                          std::make_shared<FunctionType>(
                                  std::make_shared<ScalarType>("int"),
                                  std::vector<std::shared_ptr<DataType>>{}));
@@ -66,7 +76,7 @@ namespace coy {
     }
 
     bool Compiler::generateIR() {
-        if (!_isSemanticAnalyzed){
+        if (!_isSemanticAnalyzed) {
             _error = "Semantic analysis not done, please run semanticAnalyze() first.";
             return false;
         }
@@ -81,11 +91,23 @@ namespace coy {
                 "getint",
                 std::vector<std::shared_ptr<Parameter>>{},
                 std::make_shared<IRInteger32Type>());
+        auto putch = std::make_shared<IRFunction>(
+                "putch",
+                std::vector<std::shared_ptr<Parameter>>{
+                        std::make_shared<Parameter>("putch_arg0", std::make_shared<IRInteger32Type>())
+                },
+                std::make_shared<IREmptyType>());
+        auto getch = std::make_shared<IRFunction>(
+                "getch",
+                std::vector<std::shared_ptr<Parameter>>{},
+                std::make_shared<IRInteger32Type>());
         generator.registerFunction(putint);
         generator.registerFunction(getint);
-        try{
+        generator.registerFunction(putch);
+        generator.registerFunction(getch);
+        try {
             _irModule = generator.generate(_ast);
-        }catch (const std::runtime_error& e){
+        } catch (const std::runtime_error &e) {
             _error = e.what();
             return false;
         }

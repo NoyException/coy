@@ -35,17 +35,43 @@ namespace coy {
 
     std::shared_ptr<IRModule> IRGenerator::generate(const std::shared_ptr<NodeProgram> &program) {
         auto module = std::make_shared<IRModule>();
+        //为了让global variable初始化，需要生成一个初始化用的function
+        auto initFunction = std::make_shared<IRFunction>(
+                "__init_global__",
+                std::vector<std::shared_ptr<Parameter>>{},
+                std::make_shared<IREmptyType>());
+        registerFunction(initFunction);
+        
+        std::deque<std::shared_ptr<IRCodeBlock>> blocks;
+        auto block = std::make_shared<IRCodeBlock>(
+                std::make_shared<Label>("__init_global__START"));
+        auto returnBlock = std::make_shared<IRCodeBlock>(
+                std::make_shared<Label>("__init_global__RETURN"));
+        blocks.push_back(block);
+        
         for (const auto &item: program->getNodes()) {
             if (auto function = item->as<NodeFunction>()) {
+                if (function->getIdentifier()->getUniqueName()=="main")
+                    module->addFunction(initFunction);
                 module->addFunction(generateFunction(function));
             } else if (auto declaration = item->as<NodeDeclaration>()) {
                 for (const auto &definition: declaration->getDefinitions()) {
-                    module->addGlobalVariable(generateGlobalVariable(definition));
+                    auto tmp = generateGlobalVariable(definition, block, blocks);
+                    block = tmp.first;
+                    module->addGlobalVariable(tmp.second);
                 }
             } else {
                 throw std::runtime_error("Unknown node type");
             }
         }
+        
+        // 对__init_global__函数进行善后处理
+        if (!isLastInstructionTerminator(blocks.back())) {
+            blocks.back()->addInstruction(std::make_shared<JumpInstruction>(returnBlock));
+        }
+        blocks.push_back(returnBlock);
+        returnBlock->addInstruction(std::make_shared<ReturnInstruction>(Expression::NONE()));
+        initFunction->setBlocks(blocks);
         return module;
     }
 
@@ -68,6 +94,16 @@ namespace coy {
         auto returnBlock = std::make_shared<IRCodeBlock>(
                 std::make_shared<Label>(uniqueName + "_RETURN"));
 
+        //main函数特殊处理，需要调用__init_global__函数
+        if (uniqueName == "main") {
+            auto initFunction = _functions.find("__init_global__");
+            if (initFunction == _functions.end()) {
+                throw std::runtime_error("No __init_global__ function found");
+            }
+            startBlock->addInstruction(std::make_shared<FunctionCallInstruction>(
+                    initFunction->second, std::vector<std::shared_ptr<Expression>>{}));
+        }
+        
         std::vector<std::shared_ptr<Parameter>> parameters;
         //处理参数
         for (const auto &item: function->getParams()) {
@@ -75,7 +111,6 @@ namespace coy {
             auto paramUniqueName = item->getIdentifier()->getUniqueName();
             auto param = std::make_shared<Parameter>(paramUniqueName, type);
             // 如果不是数组或指针，需要分配内存
-//            if (type->maxDimension()==0){
             auto paramAddr = std::make_shared<AllocateInstruction>(type);
             startBlock->addInstruction(paramAddr);
             auto store = std::make_shared<StoreInstruction>(
@@ -84,11 +119,6 @@ namespace coy {
             startBlock->addInstruction(store);
             auto expression = std::make_shared<Expression>(paramAddr);
             _expressions[paramUniqueName] = expression;
-//            }
-//            else{
-//                auto expression = std::make_shared<Expression>(param);
-//                _expressions[paramUniqueName] = expression;
-//            }
             _typeTable[paramUniqueName] = type;
             parameters.push_back(param);
         }
@@ -119,7 +149,7 @@ namespace coy {
             returnBlock->addInstruction(std::make_shared<ReturnInstruction>(
                     std::make_shared<Expression>(returnValue)));
         } else {
-            returnBlock->addInstruction(std::make_shared<ReturnInstruction>(Expression::NONE));
+            returnBlock->addInstruction(std::make_shared<ReturnInstruction>(Expression::NONE()));
         }
         _returnAddress = nullptr;
         _returnBlock = nullptr;
@@ -322,28 +352,28 @@ namespace coy {
             if (unaryOperator->getOperator() == "-") {
                 result = std::make_shared<BinaryOperatorInstruction>(
                         "-",
-                        Expression::ZERO,
+                        Expression::ZERO(),
                         operand.second);
             } else if (unaryOperator->getOperator() == "!") {
                 result = std::make_shared<BinaryOperatorInstruction>(
                         "==",
                         operand.second,
-                        Expression::ZERO);
+                        Expression::ZERO());
             } else if (unaryOperator->getOperator() == "~") {
                 result = std::make_shared<BinaryOperatorInstruction>(
                         "^",
                         operand.second,
-                        Expression::MINUS_ONE);
+                        Expression::MINUS_ONE());
             } else if (unaryOperator->getOperator() == "++") {
                 result = std::make_shared<BinaryOperatorInstruction>(
                         "+",
                         operand.second,
-                        Expression::ONE);
+                        Expression::ONE());
             } else if (unaryOperator->getOperator() == "--") {
                 result = std::make_shared<BinaryOperatorInstruction>(
                         "-",
                         operand.second,
-                        Expression::ONE);
+                        Expression::ONE());
             } else {
                 throw std::runtime_error("Unknown unary operator");
             }
@@ -375,7 +405,8 @@ namespace coy {
         } else if (auto leftValue = expression->as<NodeLeftValue>()) {
             auto addr = translateLeftValue(leftValue, currentBlock, blocks);
             auto type = _typeTable[leftValue->getIdentifier()->getUniqueName()];
-            if (leftValue->getIndexes().size() < type->maxDimension())
+            if (std::dynamic_pointer_cast<IRArrayType>(type)
+                    && leftValue->getIndexes().size() < type->maxDimension())
                 return {currentBlock, addr};
             auto load = std::make_shared<LoadInstruction>(addr);
             currentBlock->addInstruction(load);
@@ -429,15 +460,24 @@ namespace coy {
         return std::make_shared<Expression>(offset);
     }
 
-    std::shared_ptr<IRGlobalVariable>
-    IRGenerator::generateGlobalVariable(const std::shared_ptr<NodeDefinition> &definition) {
+    std::pair<std::shared_ptr<IRCodeBlock>, std::shared_ptr<IRGlobalVariable>>
+    IRGenerator::generateGlobalVariable(const std::shared_ptr<NodeDefinition> &definition,
+                                        std::shared_ptr<IRCodeBlock> currentBlock,
+                                        std::deque<std::shared_ptr<IRCodeBlock>> &blocks) {
         auto type = translateDataType(definition->getDataType());
         auto uniqueName = definition->getIdentifier()->getUniqueName();
-        auto result = std::make_shared<IRGlobalVariable>(uniqueName, type,
-                                                         definition->getDimensions().empty() ? -1 : 1);
+        auto result = std::make_shared<IRGlobalVariable>(uniqueName, type);
         auto expression = std::make_shared<Expression>(result);
+        if(definition->getInitialValue()!=nullptr){
+            auto init = translateExpression(definition->getInitialValue(), currentBlock, blocks);
+            currentBlock = init.first;
+            auto store = std::make_shared<StoreInstruction>(
+                    expression,
+                    init.second);
+            currentBlock->addInstruction(store);
+        }
         _typeTable[uniqueName] = type;
         _expressions[uniqueName] = expression;
-        return result;
+        return {currentBlock, result};
     }
 }

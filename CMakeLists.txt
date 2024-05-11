@@ -23,3 +23,9 @@ add_executable(coy_lab2 src/labs/lab2.cpp
         ${MIDEND_SRC}
         src/Compiler.cpp
         src/Compiler.h)
+
+add_executable(coy_lab3 src/labs/lab3.cpp
+        ${FRONTEND_SRC}
+        ${MIDEND_SRC}
+        src/Compiler.cpp
+        src/Compiler.h)

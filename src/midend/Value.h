@@ -140,7 +140,7 @@ namespace coy {
         }
 
         [[nodiscard]] std::string toString() const override {
-            return "%" + _uniqueName;
+            return "#" + _uniqueName;
         }
     };
 

@@ -53,8 +53,10 @@ namespace coy {
         void generateBlocks(const std::shared_ptr<Node> &node, const std::shared_ptr<IRCodeBlock> &currentBlock,
                             std::deque<std::shared_ptr<IRCodeBlock>> &blocks);
 
-        std::shared_ptr<IRGlobalVariable>
-        generateGlobalVariable(const std::shared_ptr<NodeDefinition> &definition);
+        std::pair<std::shared_ptr<IRCodeBlock>, std::shared_ptr<IRGlobalVariable>>
+        generateGlobalVariable(const std::shared_ptr<NodeDefinition> &definition, 
+                               std::shared_ptr<IRCodeBlock> currentBlock,
+                               std::deque<std::shared_ptr<IRCodeBlock>> &blocks);
 
     public:
         
