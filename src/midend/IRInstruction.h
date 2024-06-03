@@ -66,7 +66,7 @@ namespace coy {
         }
     };
 
-    /*abstract*/ class ValueBindingInstruction : public IRInstruction {
+    /*abstract*/ class ValueBindingInstruction : public IRInstruction, public IVirtualRegister{
     private:
         std::string _boundName{};
     public:
@@ -83,11 +83,15 @@ namespace coy {
         [[nodiscard]] const std::string &getBoundName() const {
             return _boundName;
         }
+
+        [[nodiscard]] std::string getVirtualRegister() const override {
+            return "%"+_boundName;
+        }
     };
 
-    class Expression {
+    class Expression : public IVirtualRegister {
     private:
-        std::variant<std::shared_ptr<ValueBindingInstruction>, std::shared_ptr<Value>, std::shared_ptr<IRGlobalVariable>> _value;
+        std::shared_ptr<IVirtualRegister> _value;
     public:
         explicit Expression(std::shared_ptr<ValueBindingInstruction> value) : _value(std::move(value)) {}
 
@@ -116,27 +120,31 @@ namespace coy {
         }
 
         [[nodiscard]] bool isInstruction() const {
-            return std::holds_alternative<std::shared_ptr<ValueBindingInstruction>>(_value);
+            return std::dynamic_pointer_cast<ValueBindingInstruction>(_value) != nullptr;
         }
 
         [[nodiscard]] bool isValue() const {
-            return std::holds_alternative<std::shared_ptr<Value>>(_value);
+            return std::dynamic_pointer_cast<Value>(_value) != nullptr;
         }
 
         [[nodiscard]] bool isGlobalVariable() const {
-            return std::holds_alternative<std::shared_ptr<IRGlobalVariable>>(_value);
+            return std::dynamic_pointer_cast<IRGlobalVariable>(_value) != nullptr;
         }
 
         [[nodiscard]] std::shared_ptr<ValueBindingInstruction> getInstruction() const {
-            return std::get<std::shared_ptr<ValueBindingInstruction>>(_value);
+            return std::dynamic_pointer_cast<ValueBindingInstruction>(_value);
         }
 
         [[nodiscard]] std::shared_ptr<Value> getValue() const {
-            return std::get<std::shared_ptr<Value>>(_value);
+            return std::dynamic_pointer_cast<Value>(_value);
         }
 
         [[nodiscard]] std::shared_ptr<IRGlobalVariable> getGlobalVariable() const {
-            return std::get<std::shared_ptr<IRGlobalVariable>>(_value);
+            return std::dynamic_pointer_cast<IRGlobalVariable>(_value);
+        }
+        
+        [[nodiscard]] std::string getVirtualRegister() const override {
+            return _value->getVirtualRegister();
         }
     };
 

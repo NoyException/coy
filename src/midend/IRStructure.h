@@ -40,6 +40,10 @@ namespace coy {
         [[nodiscard]] const std::deque<std::shared_ptr<IRInstruction>> &getInstructions() const {
             return _instructions;
         }
+
+        [[nodiscard]] std::deque<std::shared_ptr<IRInstruction>> &getInstructions() {
+            return _instructions;
+        }
     };
 
     /**
@@ -77,7 +81,7 @@ namespace coy {
         }
     };
     
-    class IRGlobalVariable {
+    class IRGlobalVariable : public IVirtualRegister {
     private:
         std::string _uniqueName;
         std::shared_ptr<IRDataType> _type;
@@ -93,6 +97,11 @@ namespace coy {
         [[nodiscard]] const std::shared_ptr<IRDataType> &getDataType() const {
             return _type;
         }
+
+        [[nodiscard]] std::string getVirtualRegister() const override {
+            return "@" + _uniqueName;
+        }
+
     };
     
     class IRModule{

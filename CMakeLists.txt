@@ -10,7 +10,11 @@ add_executable(coy src/main.cpp
         ${FRONTEND_SRC}
         ${MIDEND_SRC}
         src/Compiler.cpp
-        src/Compiler.h)
+        src/Compiler.h
+        src/backend/RISCVStructure.cpp
+        src/backend/RISCVStructure.h
+        src/backend/RISCVGenerator.cpp
+        src/backend/RISCVGenerator.h)
 
 add_executable(coy_lab1 src/labs/lab1.cpp
         ${FRONTEND_SRC}

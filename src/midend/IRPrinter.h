@@ -12,9 +12,7 @@ namespace coy {
 
     class IRPrinter {
     private:
-        int _id = 0;
         std::string translateOperator(const std::string& op);
-        std::string translateExpression(const std::shared_ptr<Expression>& expression);
     public:
         void print(const std::shared_ptr<IRModule>& module, std::vector<std::string>& output);
         void print(const std::shared_ptr<IRFunction>& function, std::vector<std::string>& output);

@@ -4,6 +4,8 @@
 
 #include "IRGenerator.h"
 
+#include <algorithm>
+
 namespace coy {
 
     std::shared_ptr<IRDataType> IRGenerator::translateDataType(const std::shared_ptr<DataType> &dataType) {
@@ -43,11 +45,11 @@ namespace coy {
         registerFunction(initFunction);
         
         std::deque<std::shared_ptr<IRCodeBlock>> blocks;
-        auto block = std::make_shared<IRCodeBlock>(
+        auto startBlock = std::make_shared<IRCodeBlock>(
                 std::make_shared<Label>("__init_global__START"));
         auto returnBlock = std::make_shared<IRCodeBlock>(
                 std::make_shared<Label>("__init_global__RETURN"));
-        blocks.push_back(block);
+        blocks.push_back(startBlock);
         
         for (const auto &item: program->getNodes()) {
             if (auto function = item->as<NodeFunction>()) {
@@ -56,8 +58,8 @@ namespace coy {
                 module->addFunction(generateFunction(function));
             } else if (auto declaration = item->as<NodeDeclaration>()) {
                 for (const auto &definition: declaration->getDefinitions()) {
-                    auto tmp = generateGlobalVariable(definition, block, blocks);
-                    block = tmp.first;
+                    auto tmp = generateGlobalVariable(definition, startBlock, blocks);
+                    startBlock = tmp.first;
                     module->addGlobalVariable(tmp.second);
                 }
             } else {
@@ -72,6 +74,14 @@ namespace coy {
         blocks.push_back(returnBlock);
         returnBlock->addInstruction(std::make_shared<ReturnInstruction>(Expression::NONE()));
         initFunction->setBlocks(blocks);
+
+        for (const auto &item: module->getContents()){
+            if (std::holds_alternative<std::shared_ptr<IRFunction>>(item)){
+                auto function = std::get<std::shared_ptr<IRFunction>>(item);
+                putAllocationsFront(function);
+            }
+        }
+        allocateVirtualRegister(module);
         return module;
     }
 
@@ -479,5 +489,39 @@ namespace coy {
         _typeTable[uniqueName] = type;
         _expressions[uniqueName] = expression;
         return {currentBlock, result};
+    }
+
+    void IRGenerator::allocateVirtualRegister(const std::shared_ptr<IRModule> &module) {
+        int id = 0;
+        for (const auto &item: module->getContents()) {
+            if (std::holds_alternative<std::shared_ptr<IRFunction>>(item)) {
+                auto function = std::get<std::shared_ptr<IRFunction>>(item);
+                for (auto &block: function->getBlocks()) {
+                    for (auto &instruction: block->getInstructions()) {
+                        if (auto valueBinding = std::dynamic_pointer_cast<ValueBindingInstruction>(instruction)) {
+                            valueBinding->setBoundName(std::to_string(id++));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    void IRGenerator::putAllocationsFront(const std::shared_ptr<IRFunction> &function) {
+        std::deque<std::shared_ptr<IRInstruction>> allocations;
+        for (auto &block: function->getBlocks()) {
+            auto &instructions = block->getInstructions();
+            for (auto &instruction: instructions) {
+                if (instruction->is<AllocateInstruction>()) {
+                    allocations.push_back(instruction);
+                    instruction = nullptr;
+                }
+            }
+            // 删除空指令
+            instructions.erase(std::remove(instructions.begin(), instructions.end(), nullptr), instructions.end());
+        }
+        function->getBlocks()[0]->getInstructions().insert(
+                function->getBlocks()[0]->getInstructions().begin(),
+                allocations.begin(), allocations.end());
     }
 }

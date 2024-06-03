@@ -18,12 +18,18 @@ namespace coy {
         [[nodiscard]] virtual int maxDimension() const {
             return 0;
         }
+        
+        [[nodiscard]] virtual int size() const = 0;
 
         [[nodiscard]] virtual std::string toString() const = 0;
     };
 
     class IREmptyType : public IRDataType {
     public:
+        [[nodiscard]] int size() const override {
+            return 0;
+        }
+        
         [[nodiscard]] std::string toString() const override {
             return "()";
         }
@@ -31,6 +37,10 @@ namespace coy {
 
     class IRInteger32Type : public IRDataType {
     public:
+        [[nodiscard]] int size() const override {
+            return 4;
+        }
+        
         [[nodiscard]] std::string toString() const override {
             return "i32";
         }
@@ -55,6 +65,14 @@ namespace coy {
         [[nodiscard]] int maxDimension() const override {
             return _dimensions.size();
         }
+        
+        [[nodiscard]] int size() const override {
+            int s = _elementType->size();
+            for (auto dim: _dimensions) {
+                s *= dim;
+            }
+            return s;
+        }
 
         [[nodiscard]] std::string toString() const override {
             return _elementType->toString() + "*";
@@ -73,6 +91,10 @@ namespace coy {
 
         [[nodiscard]] int maxDimension() const override {
             return 1+(_pointedType->maxDimension());
+        }
+        
+        [[nodiscard]] int size() const override {
+            return 4;
         }
 
         [[nodiscard]] std::string toString() const override {
@@ -97,6 +119,10 @@ namespace coy {
 
         [[nodiscard]] const std::vector<std::shared_ptr<IRDataType>> &getParamTypes() const {
             return _paramTypes;
+        }
+        
+        [[nodiscard]] int size() const override {
+            return 0;
         }
 
         [[nodiscard]] std::string toString() const override {

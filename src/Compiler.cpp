@@ -4,6 +4,8 @@
 
 #include "Compiler.h"
 
+#include <iostream>
+
 namespace coy {
     Compiler::Compiler(std::string content) : _content(std::move(content)) {}
 
@@ -112,5 +114,24 @@ namespace coy {
             return false;
         }
         return true;
+    }
+
+    bool Compiler::generateAsmRISCV() {
+        if (_irModule == nullptr) {
+            _error = "IR module not found, please run generateIR() first.";
+            return false;
+        }
+        RISCVGenerator generator;
+        try {
+            auto tmp = generator.generate(_irModule);
+            for (const auto &item: tmp){
+                std::cout << item << std::endl;
+            }
+//            generator.generate(_irModule);
+            return true;
+        } catch (const std::runtime_error &e) {
+            _error = e.what();
+            return false;
+        }
     }
 } // coy

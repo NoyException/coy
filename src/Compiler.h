@@ -13,6 +13,7 @@
 #include "frontend/SemanticAnalyzer.h"
 #include "midend/IRGenerator.h"
 #include "midend/IRPrinter.h"
+#include "backend/RISCVGenerator.h"
 
 namespace coy {
 
@@ -36,6 +37,10 @@ namespace coy {
         bool semanticAnalyze();
 
         bool generateIR();
+        
+//        bool optimizeIR();
+
+        bool generateAsmRISCV();
 
         [[nodiscard]] std::string getError() const {
             return _error.value_or("No error");

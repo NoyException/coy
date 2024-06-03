@@ -57,13 +57,16 @@ namespace coy {
         generateGlobalVariable(const std::shared_ptr<NodeDefinition> &definition, 
                                std::shared_ptr<IRCodeBlock> currentBlock,
                                std::deque<std::shared_ptr<IRCodeBlock>> &blocks);
+        
+        void putAllocationsFront(const std::shared_ptr<IRFunction> &function);
+        
+        void allocateVirtualRegister(const std::shared_ptr<IRModule>& module);
 
     public:
         
         void registerFunction(const std::shared_ptr<IRFunction>& function);
 
         std::shared_ptr<IRModule> generate(const std::shared_ptr<NodeProgram> &program);
-
         
 //        void shortCircuit(const std::shared_ptr<IRCodeBlock> &currentBlock,
 //                          const std::shared_ptr<Expression> &expression,
