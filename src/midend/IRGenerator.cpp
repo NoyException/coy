@@ -43,17 +43,17 @@ namespace coy {
                 std::vector<std::shared_ptr<Parameter>>{},
                 std::make_shared<IREmptyType>());
         registerFunction(initFunction);
-        
+
         std::deque<std::shared_ptr<IRCodeBlock>> blocks;
         auto startBlock = std::make_shared<IRCodeBlock>(
                 std::make_shared<Label>("__init_global__START"));
         auto returnBlock = std::make_shared<IRCodeBlock>(
                 std::make_shared<Label>("__init_global__RETURN"));
         blocks.push_back(startBlock);
-        
+
         for (const auto &item: program->getNodes()) {
             if (auto function = item->as<NodeFunction>()) {
-                if (function->getIdentifier()->getUniqueName()=="main")
+                if (function->getIdentifier()->getUniqueName() == "main")
                     module->addFunction(initFunction);
                 module->addFunction(generateFunction(function));
             } else if (auto declaration = item->as<NodeDeclaration>()) {
@@ -66,7 +66,7 @@ namespace coy {
                 throw std::runtime_error("Unknown node type");
             }
         }
-        
+
         // 对__init_global__函数进行善后处理
         if (!isLastInstructionTerminator(blocks.back())) {
             blocks.back()->addInstruction(std::make_shared<JumpInstruction>(returnBlock));
@@ -75,8 +75,8 @@ namespace coy {
         returnBlock->addInstruction(std::make_shared<ReturnInstruction>(Expression::NONE()));
         initFunction->setBlocks(blocks);
 
-        for (const auto &item: module->getContents()){
-            if (std::holds_alternative<std::shared_ptr<IRFunction>>(item)){
+        for (const auto &item: module->getContents()) {
+            if (std::holds_alternative<std::shared_ptr<IRFunction>>(item)) {
                 auto function = std::get<std::shared_ptr<IRFunction>>(item);
                 putAllocationsFront(function);
             }
@@ -98,6 +98,7 @@ namespace coy {
 
     std::shared_ptr<IRFunction> IRGenerator::generateFunction(const std::shared_ptr<NodeFunction> &function) {
         std::string uniqueName = function->getIdentifier()->getUniqueName();
+        auto returnType = translateDataType(function->getReturnType()->getDataType());
 
         auto startBlock = std::make_shared<IRCodeBlock>(
                 std::make_shared<Label>(uniqueName + "_START"));
@@ -111,9 +112,9 @@ namespace coy {
                 throw std::runtime_error("No __init_global__ function found");
             }
             startBlock->addInstruction(std::make_shared<FunctionCallInstruction>(
-                    initFunction->second, std::vector<std::shared_ptr<Expression>>{}));
+                    returnType, initFunction->second, std::vector<std::shared_ptr<Expression>>{}));
         }
-        
+
         std::vector<std::shared_ptr<Parameter>> parameters;
         //处理参数
         for (const auto &item: function->getParams()) {
@@ -124,6 +125,7 @@ namespace coy {
             auto paramAddr = std::make_shared<AllocateInstruction>(type);
             startBlock->addInstruction(paramAddr);
             auto store = std::make_shared<StoreInstruction>(
+                    type,
                     std::make_shared<Expression>(paramAddr),
                     std::make_shared<Expression>(param));
             startBlock->addInstruction(store);
@@ -136,7 +138,7 @@ namespace coy {
         auto result = std::make_shared<IRFunction>(
                 uniqueName,
                 parameters,
-                translateDataType(function->getReturnType()->getDataType()));
+                returnType);
         registerFunction(result);
 
         std::deque<std::shared_ptr<IRCodeBlock>> blocks;
@@ -154,6 +156,7 @@ namespace coy {
         }
         if (!isVoid) {
             auto returnValue = std::make_shared<LoadInstruction>(
+                    result->getReturnType(),
                     std::make_shared<Expression>(_returnAddress));
             returnBlock->addInstruction(returnValue);
             returnBlock->addInstruction(std::make_shared<ReturnInstruction>(
@@ -172,7 +175,7 @@ namespace coy {
     void
     IRGenerator::generateBlocks(const std::shared_ptr<Node> &node, const std::shared_ptr<IRCodeBlock> &currentBlock,
                                 std::deque<std::shared_ptr<IRCodeBlock>> &blocks) {
-        if (node == nullptr){
+        if (node == nullptr) {
             return;
         }
         auto b = currentBlock;
@@ -202,7 +205,7 @@ namespace coy {
                 if (initialValue != nullptr) {
                     auto tmp = translateExpression(initialValue, currentBlock, blocks);
                     currentBlock = tmp.first;
-                    auto store = std::make_shared<StoreInstruction>(expression, tmp.second);
+                    auto store = std::make_shared<StoreInstruction>(type, expression, tmp.second);
                     currentBlock->addInstruction(store);
                 }
             }
@@ -216,7 +219,7 @@ namespace coy {
             auto offsetAddr = translateLeftValue(leftValue, currentBlock, blocks);
             auto tmp = translateExpression(assignment->getExpression(), currentBlock, blocks);
             currentBlock = tmp.first;
-            auto result = std::make_shared<StoreInstruction>(offsetAddr, tmp.second);
+            auto result = std::make_shared<StoreInstruction>(offsetAddr->getDataType(), offsetAddr, tmp.second);
             currentBlock->addInstruction(result);
             return currentBlock;
         } else if (auto returnStatement = statement->as<NodeReturn>()) {
@@ -227,8 +230,8 @@ namespace coy {
             }
             auto tmp = translateExpression(returnStatement->getExpression(), currentBlock, blocks);
             currentBlock = tmp.first;
-            auto store = std::make_shared<StoreInstruction>(
-                    std::make_shared<Expression>(_returnAddress), tmp.second);
+            auto store = std::make_shared<StoreInstruction>(_returnAddress->getDataType(),
+                                                            std::make_shared<Expression>(_returnAddress), tmp.second);
             auto jump = std::make_shared<JumpInstruction>(_returnBlock);
             currentBlock->addInstruction(store);
             currentBlock->addInstruction(jump);
@@ -322,27 +325,27 @@ namespace coy {
                               ? std::make_shared<BranchInstruction>(result, shortCircuit, nonShortCircuit)
                               : std::make_shared<BranchInstruction>(result, nonShortCircuit, shortCircuit);
                 currentBlock->addInstruction(branch);
-                
+
                 blocks.push_back(shortCircuit);
                 auto store1 = std::make_shared<StoreInstruction>(
-                        std::make_shared<Expression>(alloca),result);
+                        alloca->getDataType(), std::make_shared<Expression>(alloca), result);
                 shortCircuit->addInstruction(store1);
                 auto exit1 = std::make_shared<JumpInstruction>(exitBlock);
                 shortCircuit->addInstruction(exit1);
-                
+
                 blocks.push_back(nonShortCircuit);
                 auto rhs = translateExpression(binaryOperator->getRhs(), nonShortCircuit, blocks);
                 currentBlock = rhs.first;
                 auto result2 = rhs.second;
                 auto store2 = std::make_shared<StoreInstruction>(
-                        std::make_shared<Expression>(alloca),result2);
+                        alloca->getDataType(), std::make_shared<Expression>(alloca), result2);
                 currentBlock->addInstruction(store2);
                 auto exit2 = std::make_shared<JumpInstruction>(exitBlock);
                 currentBlock->addInstruction(exit2);
-                
+
                 blocks.push_back(exitBlock);
                 auto load = std::make_shared<LoadInstruction>(
-                        std::make_shared<Expression>(alloca));
+                        alloca->getDataType(), std::make_shared<Expression>(alloca));
                 exitBlock->addInstruction(load);
                 return {exitBlock, std::make_shared<Expression>(load)};
             } else {
@@ -351,36 +354,42 @@ namespace coy {
                 auto rhs = translateExpression(binaryOperator->getRhs(), currentBlock, blocks);
                 currentBlock = rhs.first;
                 auto result = std::make_shared<BinaryOperatorInstruction>(
-                        binaryOperator->getOperator(), lhs.second, rhs.second);
+                        lhs.second->getDataType(), binaryOperator->getOperator(), lhs.second, rhs.second);
                 currentBlock->addInstruction(result);
                 return {currentBlock, std::make_shared<Expression>(result)};
             }
         } else if (auto unaryOperator = expression->as<NodeUnaryOperator>()) {
             auto operand = translateExpression(unaryOperator->getOperand(), currentBlock, blocks);
             currentBlock = operand.first;
+            auto dataType = operand.second->getDataType();
             std::shared_ptr<BinaryOperatorInstruction> result;
             if (unaryOperator->getOperator() == "-") {
                 result = std::make_shared<BinaryOperatorInstruction>(
+                        dataType,
                         "-",
                         Expression::ZERO(),
                         operand.second);
             } else if (unaryOperator->getOperator() == "!") {
                 result = std::make_shared<BinaryOperatorInstruction>(
+                        dataType,
                         "==",
                         operand.second,
                         Expression::ZERO());
             } else if (unaryOperator->getOperator() == "~") {
                 result = std::make_shared<BinaryOperatorInstruction>(
+                        dataType,
                         "^",
                         operand.second,
                         Expression::MINUS_ONE());
             } else if (unaryOperator->getOperator() == "++") {
                 result = std::make_shared<BinaryOperatorInstruction>(
+                        dataType,
                         "+",
                         operand.second,
                         Expression::ONE());
             } else if (unaryOperator->getOperator() == "--") {
                 result = std::make_shared<BinaryOperatorInstruction>(
+                        dataType,
                         "-",
                         operand.second,
                         Expression::ONE());
@@ -394,7 +403,7 @@ namespace coy {
             if (address == _expressions.end()) {
                 throw std::runtime_error("Undefined symbol: " + identifier->getName());
             }
-            auto result = std::make_shared<LoadInstruction>(address->second);
+            auto result = std::make_shared<LoadInstruction>(address->second->getDataType(), address->second);
             currentBlock->addInstruction(result);
             return {currentBlock, std::make_shared<Expression>(result)};
         } else if (auto functionCall = expression->as<NodeFunctionCall>()) {
@@ -409,16 +418,16 @@ namespace coy {
                 throw std::runtime_error("Undefined function: " + functionCall->getIdentifier()->getName());
             }
             auto result = std::make_shared<FunctionCallInstruction>(
-                    functionIt->second, arguments);
+                    functionIt->second->getReturnType(), functionIt->second, arguments);
             currentBlock->addInstruction(result);
             return {currentBlock, std::make_shared<Expression>(result)};
         } else if (auto leftValue = expression->as<NodeLeftValue>()) {
             auto addr = translateLeftValue(leftValue, currentBlock, blocks);
             auto type = _typeTable[leftValue->getIdentifier()->getUniqueName()];
             if (std::dynamic_pointer_cast<IRArrayType>(type)
-                    && leftValue->getIndexes().size() < type->maxDimension())
+                && leftValue->getIndexes().size() < type->maxDimension())
                 return {currentBlock, addr};
-            auto load = std::make_shared<LoadInstruction>(addr);
+            auto load = std::make_shared<LoadInstruction>(addr->getDataType(), addr);
             currentBlock->addInstruction(load);
             return {currentBlock, std::make_shared<Expression>(load)};
         } else {
@@ -455,7 +464,7 @@ namespace coy {
         if (auto pointer = std::dynamic_pointer_cast<IRPointerType>(type)) {
             dimensions.emplace_back(-1);
             type = pointer->getPointedType();
-            auto load = std::make_shared<LoadInstruction>(address);
+            auto load = std::make_shared<LoadInstruction>(address->getDataType(), address);
             currentBlock->addInstruction(load);
             address = std::make_shared<Expression>(load);
         }
@@ -478,10 +487,11 @@ namespace coy {
         auto uniqueName = definition->getIdentifier()->getUniqueName();
         auto result = std::make_shared<IRGlobalVariable>(uniqueName, type);
         auto expression = std::make_shared<Expression>(result);
-        if(definition->getInitialValue()!=nullptr){
+        if (definition->getInitialValue() != nullptr) {
             auto init = translateExpression(definition->getInitialValue(), currentBlock, blocks);
             currentBlock = init.first;
             auto store = std::make_shared<StoreInstruction>(
+                    expression->getDataType(),
                     expression,
                     init.second);
             currentBlock->addInstruction(store);

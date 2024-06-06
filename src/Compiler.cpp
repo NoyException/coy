@@ -123,11 +123,7 @@ namespace coy {
         }
         RISCVGenerator generator;
         try {
-            auto tmp = generator.generate(_irModule);
-            for (const auto &item: tmp){
-                std::cout << item << std::endl;
-            }
-//            generator.generate(_irModule);
+            _asmRISCV = generator.generate(_irModule);
             return true;
         } catch (const std::runtime_error &e) {
             _error = e.what();

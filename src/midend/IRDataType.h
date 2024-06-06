@@ -94,7 +94,7 @@ namespace coy {
         }
         
         [[nodiscard]] int size() const override {
-            return 4;
+            return 8;
         }
 
         [[nodiscard]] std::string toString() const override {

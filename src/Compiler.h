@@ -24,6 +24,7 @@ namespace coy {
         std::shared_ptr<NodeProgram> _ast = nullptr;
         bool _isSemanticAnalyzed = false;
         std::shared_ptr<IRModule> _irModule = nullptr;
+        std::optional<std::list<std::string>> _asmRISCV = std::nullopt;
 
         std::optional<std::string> _error = std::nullopt;
         size_t _errorPos = -1;
@@ -37,7 +38,7 @@ namespace coy {
         bool semanticAnalyze();
 
         bool generateIR();
-        
+
 //        bool optimizeIR();
 
         bool generateAsmRISCV();
@@ -54,16 +55,20 @@ namespace coy {
             return _error.value_or("No error") + "\n" + _content.substr(0, _errorPos) + "错误在这里" +
                    _content.substr(_errorPos);
         }
-        
+
         [[nodiscard]] std::shared_ptr<IRModule> getIRModule() const {
             return _irModule;
         }
-        
-        void getIRString(std::vector<std::string>& container) const {
+
+        void getIRString(std::vector<std::string> &container) const {
             if (_irModule == nullptr)
                 return;
             IRPrinter printer;
             return printer.print(_irModule, container);
+        }
+
+        [[nodiscard]] std::list<std::string> getAsmRISCV() const {
+            return _asmRISCV.value_or(std::list<std::string>());
         }
     };
 

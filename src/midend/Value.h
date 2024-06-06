@@ -13,26 +13,40 @@
 
 namespace coy {
 
-    class IVirtualRegister{
+    class IVirtualRegister {
     public:
         [[nodiscard]] virtual std::string getVirtualRegister() const = 0;
+
+        [[nodiscard]] virtual const std::shared_ptr<IRDataType> & getDataType() const = 0;
     };
 
     class Value : public std::enable_shared_from_this<Value>, public IVirtualRegister {
+    private:
+        std::shared_ptr<IRDataType> _dataType;
+        
     public:
+
+        explicit Value(const std::shared_ptr<IRDataType> &dataType) : _dataType(dataType) {}
 
         virtual std::string toString() const = 0;
 
         std::string getVirtualRegister() const override {
             return toString();
         }
+
+        const std::shared_ptr<IRDataType> & getDataType() const override {
+            return _dataType;
+        }
     };
-    
+
     class Constant : public Value {
+    public:
+        explicit Constant(const std::shared_ptr<IRDataType> &dataType) : Value(dataType) {}
     };
 
     class None : public Constant {
     public:
+        explicit None() : Constant(std::make_shared<IREmptyType>()) {}
 
         static const std::shared_ptr<None> INSTANCE;
 
@@ -46,7 +60,7 @@ namespace coy {
         int _value;
     public:
 
-        explicit Integer(int value) : _value(value) {}
+        explicit Integer(int value) : Constant(std::make_shared<IRInteger32Type>()), _value(value) {}
 
         [[maybe_unused]] static const std::shared_ptr<Integer> ZERO;
 
@@ -68,7 +82,7 @@ namespace coy {
         float _value;
     public:
 
-        explicit Float(float value) : _value(value) {}
+        explicit Float(float value) : Constant(std::make_shared<IRInteger32Type>()), _value(value) {}
 
         [[nodiscard]] float getValue() const {
             return _value;
@@ -79,7 +93,7 @@ namespace coy {
         }
     };
 
-    class Label : public Value {
+    class Label {
     private:
         std::string _name;
     public:
@@ -90,7 +104,7 @@ namespace coy {
             return _name;
         }
 
-        [[nodiscard]] std::string toString() const override {
+        [[nodiscard]] std::string toString() const {
             return "%L" + _name;
         }
     };
@@ -98,18 +112,13 @@ namespace coy {
     class Parameter : public Value {
     private:
         std::string _uniqueName;
-        std::shared_ptr<IRDataType> _dataType;
     public:
 
-        Parameter(std::string uniqueName, std::shared_ptr<IRDataType> dataType)
-                : _uniqueName(std::move(uniqueName)), _dataType(std::move(dataType)) {}
+        Parameter(std::string uniqueName, const std::shared_ptr<IRDataType>& dataType)
+                : Value(dataType), _uniqueName(std::move(uniqueName)) {}
 
         [[nodiscard]] std::string getUniqueName() const {
             return _uniqueName;
-        }
-
-        [[nodiscard]] const std::shared_ptr<IRDataType> &getDataType() const {
-            return _dataType;
         }
 
         [[nodiscard]] std::string toString() const override {

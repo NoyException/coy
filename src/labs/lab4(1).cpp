@@ -1,7 +1,7 @@
 ﻿#include <iostream>
 #include <fstream>
 
-#include "Compiler.h"
+#include "../Compiler.h"
 
 using namespace coy;
 
@@ -47,7 +47,6 @@ int main(int argc, char *argv[]) {
     
     auto code = compiler.getAsmRISCV();
     
-    //输出IR代码
     std::ostream* out = &std::cout;
     if (argc == 3) {
         auto f = new std::ofstream(argv[2]);

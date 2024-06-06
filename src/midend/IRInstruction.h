@@ -66,13 +66,15 @@ namespace coy {
         }
     };
 
-    /*abstract*/ class ValueBindingInstruction : public IRInstruction, public IVirtualRegister{
+    /*abstract*/ class ValueBindingInstruction : public IRInstruction, public IVirtualRegister {
     private:
         std::string _boundName{};
+        std::shared_ptr<IRDataType> _dataType;
     public:
         static constexpr InstructionType TYPE = InstructionType::VALUE_BINDING;
 
-        explicit ValueBindingInstruction(InstructionType type = TYPE) : IRInstruction(type) {}
+        explicit ValueBindingInstruction(std::shared_ptr<IRDataType> dataType, InstructionType type = TYPE)
+                : _dataType(std::move(dataType)), IRInstruction(type) {}
 
         ~ValueBindingInstruction() override = default;
 
@@ -85,7 +87,11 @@ namespace coy {
         }
 
         [[nodiscard]] std::string getVirtualRegister() const override {
-            return "%"+_boundName;
+            return "%" + _boundName;
+        }
+
+        [[nodiscard]] const std::shared_ptr<IRDataType> & getDataType() const override {
+            return _dataType;
         }
     };
 
@@ -99,22 +105,22 @@ namespace coy {
 
         explicit Expression(std::shared_ptr<IRGlobalVariable> value) : _value(std::move(value)) {}
 
-        static std::shared_ptr<Expression>& NONE() {
+        static std::shared_ptr<Expression> &NONE() {
             static std::shared_ptr<Expression> NONE = std::make_shared<Expression>(None::INSTANCE);
             return NONE;
         }
-        
-        static std::shared_ptr<Expression>& ZERO() {
+
+        static std::shared_ptr<Expression> &ZERO() {
             static std::shared_ptr<Expression> ZERO = std::make_shared<Expression>(Integer::ZERO);
             return ZERO;
         }
-        
-        static std::shared_ptr<Expression>& ONE() {
+
+        static std::shared_ptr<Expression> &ONE() {
             static std::shared_ptr<Expression> ONE = std::make_shared<Expression>(Integer::ONE);
             return ONE;
         }
-        
-        static std::shared_ptr<Expression>& MINUS_ONE() {
+
+        static std::shared_ptr<Expression> &MINUS_ONE() {
             static std::shared_ptr<Expression> MINUS_ONE = std::make_shared<Expression>(Integer::MINUS_ONE);
             return MINUS_ONE;
         }
@@ -142,9 +148,13 @@ namespace coy {
         [[nodiscard]] std::shared_ptr<IRGlobalVariable> getGlobalVariable() const {
             return std::dynamic_pointer_cast<IRGlobalVariable>(_value);
         }
-        
+
         [[nodiscard]] std::string getVirtualRegister() const override {
             return _value->getVirtualRegister();
+        }
+
+        [[nodiscard]] const std::shared_ptr<IRDataType> & getDataType() const override {
+            return _value->getDataType();
         }
     };
 
@@ -156,10 +166,12 @@ namespace coy {
     public:
         static constexpr InstructionType TYPE = InstructionType::BINARY_OPERATOR;
 
-        explicit BinaryOperatorInstruction(std::string op, std::shared_ptr<Expression> lhs,
-                                           std::shared_ptr<Expression> rhs,
-                                           InstructionType type = TYPE)
-                : ValueBindingInstruction(type), _lhs(std::move(lhs)),
+        explicit BinaryOperatorInstruction(
+                std::shared_ptr<IRDataType> dataType,
+                std::string op, std::shared_ptr<Expression> lhs,
+                std::shared_ptr<Expression> rhs,
+                InstructionType type = TYPE)
+                : ValueBindingInstruction(std::move(dataType), type), _lhs(std::move(lhs)),
                   _rhs(std::move(rhs)), _op(std::move(op)) {}
 
         [[nodiscard]] std::string getOperator() const {
@@ -182,10 +194,13 @@ namespace coy {
     public:
         static constexpr InstructionType TYPE = InstructionType::FUNCTION_CALL;
 
-        explicit FunctionCallInstruction(std::shared_ptr<IRFunction> function,
-                                         std::vector<std::shared_ptr<Expression>> arguments,
-                                         InstructionType type = TYPE)
-                : ValueBindingInstruction(type), _function(std::move(function)), _arguments(std::move(arguments)) {}
+        explicit FunctionCallInstruction(
+                std::shared_ptr<IRDataType> dataType,
+                std::shared_ptr<IRFunction> function,
+                std::vector<std::shared_ptr<Expression>> arguments,
+                InstructionType type = TYPE)
+                : ValueBindingInstruction(std::move(dataType), type), _function(std::move(function)),
+                  _arguments(std::move(arguments)) {}
 
         [[nodiscard]] std::shared_ptr<IRFunction> getFunction() const {
             return _function;
@@ -201,12 +216,12 @@ namespace coy {
     public:
         static constexpr InstructionType TYPE = InstructionType::MEMORY;
 
-        explicit MemoryInstruction(InstructionType type = TYPE) : ValueBindingInstruction(type) {}
+        explicit MemoryInstruction(std::shared_ptr<IRDataType> dataType, InstructionType type = TYPE)
+                : ValueBindingInstruction(std::move(dataType), type) {}
     };
 
     class AllocateInstruction : public MemoryInstruction {
     private:
-        std::shared_ptr<IRDataType> _dataType;
         std::vector<std::shared_ptr<Expression>> _bounds;
     public:
         static constexpr InstructionType TYPE = InstructionType::ALLOCATE;
@@ -214,25 +229,21 @@ namespace coy {
         explicit AllocateInstruction(std::shared_ptr<IRDataType> dataType,
                                      int size = 1,
                                      InstructionType type = TYPE)
-                : MemoryInstruction(type), _dataType(std::move(dataType)),
+                : MemoryInstruction(std::move(dataType), type),
                   _bounds({std::make_shared<Expression>(std::make_shared<Integer>(size))}) {}
 
         explicit AllocateInstruction(std::shared_ptr<IRDataType> dataType,
                                      std::vector<std::shared_ptr<Expression>> bounds,
                                      InstructionType type = TYPE)
-                : MemoryInstruction(type), _dataType(std::move(dataType)), _bounds(std::move(bounds)) {}
+                : MemoryInstruction(std::move(dataType), type), _bounds(std::move(bounds)) {}
 
         explicit AllocateInstruction(std::shared_ptr<IRDataType> dataType,
                                      const std::vector<int> &bounds,
                                      InstructionType type = TYPE)
-                : MemoryInstruction(type), _dataType(std::move(dataType)) {
+                : MemoryInstruction(std::move(dataType), type) {
             for (int bound: bounds) {
                 _bounds.push_back(std::make_shared<Expression>(std::make_shared<Integer>(bound)));
             }
-        }
-
-        [[nodiscard]] std::shared_ptr<IRDataType> getDataType() const {
-            return _dataType;
         }
 
         [[nodiscard]] std::vector<std::shared_ptr<Expression>> getBounds() const {
@@ -246,8 +257,10 @@ namespace coy {
     public:
         static constexpr InstructionType TYPE = InstructionType::LOAD;
 
-        explicit LoadInstruction(std::shared_ptr<Expression> address, InstructionType type = TYPE)
-                : MemoryInstruction(type), _address(std::move(address)) {}
+        explicit LoadInstruction(
+                std::shared_ptr<IRDataType> dataType,
+                std::shared_ptr<Expression> address, InstructionType type = TYPE)
+                : MemoryInstruction(std::move(dataType), type), _address(std::move(address)) {}
 
         [[nodiscard]] std::shared_ptr<Expression> getAddress() const {
             return _address;
@@ -261,10 +274,12 @@ namespace coy {
     public:
         static constexpr InstructionType TYPE = InstructionType::STORE;
 
-        explicit StoreInstruction(std::shared_ptr<Expression> address,
-                                  std::shared_ptr<Expression> value,
-                                  InstructionType type = TYPE)
-                : MemoryInstruction(type), _address(std::move(address)), _value(std::move(value)) {}
+        explicit StoreInstruction(
+                std::shared_ptr<IRDataType> dataType,
+                std::shared_ptr<Expression> address,
+                std::shared_ptr<Expression> value,
+                InstructionType type = TYPE)
+                : MemoryInstruction(std::move(dataType), type), _address(std::move(address)), _value(std::move(value)) {}
 
         [[nodiscard]] std::shared_ptr<Expression> getAddress() const {
             return _address;
@@ -277,7 +292,6 @@ namespace coy {
 
     class OffsetInstruction : public MemoryInstruction {
     private:
-        std::shared_ptr<IRDataType> _dataType;
         std::shared_ptr<Expression> _address;
         std::vector<std::shared_ptr<Expression>> _indexes;
         std::vector<int> _bounds;
@@ -290,13 +304,9 @@ namespace coy {
                 std::vector<std::shared_ptr<Expression>> indexes,
                 std::vector<int> bounds,
                 InstructionType type = TYPE)
-                : MemoryInstruction(type), _dataType(std::move(dataType)),
+                : MemoryInstruction(std::move(dataType), type),
                   _address(std::move(address)), _indexes(std::move(indexes)),
                   _bounds(std::move(bounds)) {}
-
-        [[nodiscard]] std::shared_ptr<IRDataType> getDataType() const {
-            return _dataType;
-        }
 
         [[nodiscard]] std::shared_ptr<Expression> getAddress() const {
             return _address;

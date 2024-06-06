@@ -236,6 +236,9 @@ namespace coy {
                 auto name = leftValue->getIdentifier()->getName();
                 auto indexes = leftValue->getIndexes();
                 auto searchResult = searchScope(false, name);
+                if (searchResult.second == nullptr) {
+                    return AnalyzeResult::failure("Variable " + name + " is not declared", node);
+                }
                 auto type = searchResult.second->at((int) indexes.size());
                 if (type == nullptr) {
                     return AnalyzeResult::failure("Unknown type of left value", node);
