@@ -38,7 +38,7 @@ namespace coy {
     };
 
     enum class RISCVInstructionType {
-        R, I, IL, S, B, U, J, MV, LI, Pseudo, Comment
+        R, I, IL, S, B, U, J, MV, LI, Label, Pseudo, Comment
     };
 
     class RISCVInstruction : public RISCVStructure {
@@ -87,10 +87,13 @@ namespace coy {
                 throw std::runtime_error("Invalid instruction");
             }
             _instruction = result[0];
-            if (result[0] == "add" || result[0] == "sub" || result[0] == "mul" || result[0] == "div" ||
-                result[0] == "rem" || result[0] == "and" || result[0] == "or" || result[0] == "xor" ||
-                result[0] == "sll" || result[0] == "srl" || result[0] == "sra" ||
-                result[0] == "slt" || result[0] == "sltu") {
+            if (result[0][0] == '#') {
+                _type = Type::Comment;
+                _instruction = rawInstruction;
+            } else if (result[0] == "add" || result[0] == "sub" || result[0] == "mul" || result[0] == "div" ||
+                       result[0] == "rem" || result[0] == "and" || result[0] == "or" || result[0] == "xor" ||
+                       result[0] == "sll" || result[0] == "srl" || result[0] == "sra" ||
+                       result[0] == "slt" || result[0] == "sltu") {
                 _type = Type::R;
                 _rd = result[1];
                 _rs1 = result[2];
@@ -141,9 +144,9 @@ namespace coy {
                 _type = Type::LI;
                 _rd = result[1];
                 _imm = std::stoi(result[2]);
-            } else if (result[0][0] == '#') {
-                _type = Type::Comment;
-                _instruction = rawInstruction;
+            } else if (result[0][result[0].size() - 1] == ':'){
+                _type = Type::Label;
+                _label = result[0].substr(0, result[0].size() - 1);
             } else {
                 _type = Type::Pseudo;
                 _instruction = rawInstruction;
@@ -241,6 +244,8 @@ namespace coy {
                     return _instruction + " " + _rd.value() + ", " + _rs1.value();
                 case Type::LI:
                     return _instruction + " " + _rd.value() + ", " + std::to_string(_imm.value());
+                case Type::Label:
+                    return _label.value() + ":";
                 case Type::Pseudo:
                 case Type::Comment:
                     return _instruction;

@@ -42,23 +42,23 @@ bool test(const std::string &testFile) {
     coy::Compiler compiler(content);
     if (!compiler.lex()) {
         std::cerr << "Lexical error: " << compiler.getDetailedError() << std::endl;
-        return -1;
+        return false;
     }
     if (!compiler.parse()) {
         std::cerr << "Syntax error: " << compiler.getDetailedError() << std::endl;
-        return -1;
+        return false;
     }
     if (!compiler.semanticAnalyze()) {
         std::cerr << "Semantic error: " << compiler.getDetailedError() << std::endl;
-        return -1;
+        return false;
     }
     if (!compiler.generateIR()) {
         std::cerr << "IR generation error: " << compiler.getDetailedError() << std::endl;
-        return -1;
+        return false;
     }
     if (!compiler.generateAsmRISCV()) {
         std::cerr << "RISCV generation error: " << compiler.getDetailedError() << std::endl;
-        return -1;
+        return false;
     }
 
     auto code = compiler.getAsmRISCV();
@@ -77,7 +77,7 @@ bool test(const std::string &testFile) {
     int result = std::system(command.c_str());
     if (result != 0) {
         std::cerr << "Cross compilation failed with exit code " << result << std::endl;
-        return -1;
+        return false;
     }
 
     //将input写入一个临时文件
@@ -90,11 +90,6 @@ bool test(const std::string &testFile) {
     result = std::system(command.c_str());
     if (result != 0) {
         std::cerr << "Test failed with exit code " << result << std::endl;
-        std::vector<std::string> ir;
-        compiler.getIRString(ir);
-        for (const auto &item: ir) {
-            std::cout << item << std::endl;
-        }
         return false;
     }
 
@@ -104,12 +99,12 @@ bool test(const std::string &testFile) {
     output_file.close();
 
     if (testFile.find("aaa.sy") != std::string::npos) {
-        std::cout << "output: " << output << std::endl;
         std::vector<std::string> ir;
         compiler.getIRString(ir);
         for (const auto &item: ir) {
             std::cout << item << std::endl;
         }
+        std::cout << "output: " << output << std::endl;
     }
 
     output = trim(output);
