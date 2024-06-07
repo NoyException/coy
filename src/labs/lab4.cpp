@@ -120,6 +120,13 @@ bool test(const std::string &testFile) {
 }
 
 int main() {
+    std::cout<<"The working directory is: "<<std::filesystem::current_path()<<std::endl;
+    std::cout<<"The required working directory is <path-to-project>/coy/build ('build' can be changed to any name)"<<std::endl;
+    // 检查../sysy-runtime-lib/build/libsysy.a是否存在
+    if (!std::filesystem::exists("../sysy-runtime-lib/build/libsysy.a")) {
+        std::cerr << "sysy-runtime-lib not found. Please build it first." << std::endl;
+        return -1;
+    }
     // 读取tests目录下的所有测试文件，执行测试
     std::string test_dir = "../src/labs/tests";
     for (const auto &entry: std::filesystem::directory_iterator(test_dir)) {
