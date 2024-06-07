@@ -10,6 +10,7 @@
 #include <vector>
 #include <optional>
 #include <stdexcept>
+#include <algorithm>
 
 namespace coy {
     class RISCVStructure {

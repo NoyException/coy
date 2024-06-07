@@ -93,22 +93,6 @@ namespace coy {
         }
     };
 
-    class Label {
-    private:
-        std::string _name;
-    public:
-
-        explicit Label(std::string name) : _name(std::move(name)) {}
-
-        [[nodiscard]] std::string getName() const {
-            return _name;
-        }
-
-        [[nodiscard]] std::string toString() const {
-            return "%L" + _name;
-        }
-    };
-
     class Parameter : public Value {
     private:
         std::string _uniqueName;
